@@ -30,7 +30,7 @@ def export(destination):
     script = "(()=>{\n'use strict';\n"+camera+'\n'+game+'\nstartGame();\n})();'
     if re.search(r'</script', script, re.I):
         raise ValueError('Inline script contains an HTML closing tag')
-    html = (ROOT/'index.html').read_text()
+    html = (ROOT/'index.html').read_text().replace('id="downloadOffline"', 'id="downloadOffline" hidden')
     for name in ['styles','ui']:
         html = html.replace(f'<link rel="stylesheet" href="src/{name}.css">', '<style>\n'+(ROOT/f'src/{name}.css').read_text()+'\n</style>')
     html = html.replace('<script type="module" src="src/main.js"></script>', '<script>\n'+script+'\n</script>')

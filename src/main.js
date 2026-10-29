@@ -1,4 +1,5 @@
 import startGame from './game.js';
+import { enableOfflineDownload } from './offline.js';
 
 // Keep the original decoders and driving code intact. Binary files contain
 // exactly the bytes formerly embedded as base64 strings, including compression.
@@ -44,6 +45,7 @@ try {
   }
   await Promise.all(Array.from({ length: 4 }, worker));
   startGame(assets);
+  enableOfflineDownload(assets);
   overlay.remove();
 } catch (error) {
   console.error('Game initialization failed:', error);

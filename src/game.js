@@ -1762,17 +1762,16 @@ const controlsKeys=new Set(['w','a','s','d','arrowup','arrowleft','arrowdown','a
 window.addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
  if(controlsKeys.has(k)||e.code==='Space')e.preventDefault();
- if(k==='r'){if(practiceConfigured)resetPracticeGrid();return;}
+ if(k==='escape'){if(practiceConfigured&&gameStarted&&!countdownActive){e.preventDefault();if(e.repeat)return;if(!gamePaused&&!resumeCountdownActive){pauseCameraMode=cameraMode;gamePaused=true;pauseStartedAt=performance.now();clearDriveKeys();showPauseMenu();}else if(!resumeCountdownActive){if(pausePage!=='menu')showPauseMenu();else resumePractice();}}return;}
+ if(k==='r'){if(practiceConfigured&&!gamePaused&&!resumeCountdownActive)resetPracticeGrid();return;}
  if(k==='v'){e.preventDefault();cycleCameraView();return;}
  if(e.code==='Space'||k===' '){
    if(!practiceConfigured||!gameStarted||countdownActive)return;
    if(resumeCountdownActive)return;
    if(gamePaused){
-     resumeCountdownActive=true;resumeCountdownStartedAt=performance.now();
-     showPauseOverlay('RESUMING IN 3','SPACE · wait for the 3-second countdown');
+     resumePractice();
    }else{
-     gamePaused=true;pauseStartedAt=performance.now();clearDriveKeys();
-     showPauseOverlay('PAUSED','Press SPACE to resume · 3-second countdown');
+     pauseCameraMode=cameraMode;gamePaused=true;pauseStartedAt=performance.now();clearDriveKeys();showPauseMenu();
    }
    return;
  }
@@ -1791,6 +1790,7 @@ const CAMERA_SEQUENCE=DRIVING_CAMERAS;
 function setCameraView(mode){
  if(mode!=='track'&&mode!=='orbit'&&!CAMERA_SEQUENCE.includes(mode))return;
  if(mode==='orbit'){orbitCar();}else if(mode==='track'){fullTrack();}else{cameraMode=mode;}
+ if(gamePaused&&pausePage==='settings')pauseCameraMode=mode;
  syncCameraChoice();
 }
 function syncCameraChoice(){document.querySelectorAll('.camera-choice').forEach(b=>{const active=b.dataset.view===cameraMode;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));});}
@@ -2121,10 +2121,34 @@ function finishRecordedPlayerLap(now){
 
 let gamePaused=false, resumeCountdownActive=false, resumeCountdownStartedAt=0, pauseStartedAt=0;
 const pauseOverlay=document.createElement('div');
-pauseOverlay.style.cssText='position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(3,8,13,.64);color:#f5fbff;font-family:Arial,Helvetica,sans-serif;text-align:center;pointer-events:none;';
+pauseOverlay.style.cssText='position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(3,8,13,.64);color:#f5fbff;font-family:Arial,Helvetica,sans-serif;text-align:center;pointer-events:auto;';
 pauseOverlay.innerHTML='<div style="padding:30px 48px;border:1px solid #48606e;border-radius:18px;background:rgba(8,18,27,.96);box-shadow:0 18px 70px #0008"><div id="pauseTitle" style="font-size:38px;font-weight:900;letter-spacing:4px">PAUSED</div><div id="pauseSubtitle" style="margin-top:12px;font-size:14px;letter-spacing:1px;color:#9feaf0">Press SPACE to resume</div></div>';
+pauseOverlay.id='pauseOverlay';
+const pauseActions=document.createElement('div');pauseActions.id='pauseActions';
+pauseActions.innerHTML='<button id="pauseQuit">QUIT</button><button id="pauseTrack">VIEW TRACK</button><button id="pauseSettings">SETTINGS</button>';
+pauseOverlay.firstElementChild.appendChild(pauseActions);
 document.body.appendChild(pauseOverlay);
-function showPauseOverlay(title,subtitle){document.getElementById('pauseTitle').textContent=title;document.getElementById('pauseSubtitle').textContent=subtitle;pauseOverlay.style.display='flex';}
+let pausePage='menu',pauseCameraMode='chase';
+const pauseBack=document.createElement('button');pauseBack.id='pauseBack';pauseBack.textContent='BACK TO PAUSE MENU · ESC';pauseBack.hidden=true;document.body.appendChild(pauseBack);
+function showPauseMenu(){
+ pausePage='menu';pauseBack.hidden=true;closeSettings();cameraMode=pauseCameraMode;syncCameraChoice();
+ showPauseOverlay('PAUSED','ESC / SPACE · resume with a 3-second countdown');
+}
+function resumePractice(){
+ pauseBack.hidden=true;closeSettings();cameraMode=pauseCameraMode;syncCameraChoice();
+ resumeCountdownActive=true;resumeCountdownStartedAt=performance.now();
+ showPauseOverlay('RESUMING IN 3','Wait for the 3-second countdown');
+}
+pauseBack.addEventListener('click',showPauseMenu);
+document.getElementById('pauseTrack').addEventListener('click',()=>{pausePage='track';hidePauseOverlay();pauseBack.hidden=false;fullTrack();});
+document.getElementById('pauseSettings').addEventListener('click',()=>{pausePage='settings';hidePauseOverlay();pauseBack.hidden=false;settingsPanel.hidden=false;settingsToggle.setAttribute('aria-expanded','true');});
+document.getElementById('pauseQuit').addEventListener('click',()=>{
+ gameStarted=false;practiceConfigured=false;gamePaused=false;resumeCountdownActive=false;countdownActive=false;pauseStartedAt=0;
+ clearDriveKeys();clearPracticeTiming();hidePauseOverlay();pauseBack.hidden=true;closeSettings();
+ document.getElementById('startLights').classList.add('hidden');document.getElementById('practiceTiming').classList.add('hidden');
+ document.getElementById('teamScreen').classList.add('hidden');document.getElementById('trackScreen').classList.remove('hidden');fullTrack();
+});
+function showPauseOverlay(title,subtitle){document.getElementById('pauseTitle').textContent=title;document.getElementById('pauseSubtitle').textContent=subtitle;pauseActions.hidden=resumeCountdownActive;pauseOverlay.style.display='flex';}
 function hidePauseOverlay(){pauseOverlay.style.display='none';}
 function makePlayerLapSample(t){
  const kmh=carSpeed<0?Math.abs(carSpeed)*3.6:(Math.abs(carSpeed)/MAX_WORLD_SPEED)*MAX_DASH_SPEED;
@@ -2344,10 +2368,11 @@ let previous=performance.now();function loop(t){const dt=Math.min(.04,Math.max(0
  const settingsToggle=document.getElementById('settingsToggle'),settingsPanel=document.getElementById('settingsPanel');
  function closeSettings(){settingsPanel.hidden=true;settingsToggle.setAttribute('aria-expanded','false');}
  settingsToggle.addEventListener('click',()=>{settingsPanel.hidden=!settingsPanel.hidden;settingsToggle.setAttribute('aria-expanded',String(!settingsPanel.hidden));});
- document.getElementById('settingsClose').addEventListener('click',closeSettings);
+ document.getElementById('settingsClose').addEventListener('click',()=>{if(gamePaused&&pausePage==='settings')showPauseMenu();else closeSettings();});
  settingsPanel.addEventListener('click',e=>e.stopPropagation());
  document.addEventListener('pointerdown',e=>{if(!settingsPanel.hidden&&!settingsPanel.contains(e.target)&&e.target!==settingsToggle)closeSettings();});
- document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
+ // Escape is handled by the practice pause controller above.
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!gameStarted)closeSettings();});
  document.querySelectorAll('.camera-choice').forEach(btn=>btn.addEventListener('click',()=>{setCameraView(btn.dataset.view);closeSettings();}));
  syncCameraChoice();
  const helpToggle=document.getElementById('helpToggle'),gameInfo=document.getElementById('gameInfo');

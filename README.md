@@ -71,3 +71,11 @@ python3 tools/export_standalone.py ../artifacts/formula_racing_2171_cockpit.html
 ```
 
 导出文件保留完整模型，约 309 MiB，应放在仓库外。文件可用 Chrome/Edge 直接打开，无需运行服务器；导出器不会覆盖已有文件。
+
+## Offline play and Blender models
+
+On the website, click **DOWNLOAD OFFLINE HTML** on the opening menu (or in the top bar while driving). Your browser saves a complete HTML including all cars and circuits. Open that downloaded file in Chrome or Edge for offline play. This is a large download; wait for the browser to finish saving it. The offline export hides the download button.
+
+Practice: **Esc** opens Quit / View Track / Settings. Viewing the track and settings keep driving paused. Esc returns to the pause menu; Esc or Space resumes after three seconds. Quit returns to track selection.
+
+Original editable GLBs: [RB22](models/RB22.glb?raw=true), [SF26](models/SF26.glb?raw=true). Download these and import them into Blender using File > Import > glTF 2.0. See [model preparation notes](models/README.md) before separating wheels. These exports preserve the source geometry and textures; wheel animation is not implemented yet.

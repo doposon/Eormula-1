@@ -17,3 +17,7 @@
   color: #68f0f0;
   font: 700 16px Arial, sans-serif;
 }
+
+#pauseActions { display:flex; gap:12px; margin-top:24px; flex-wrap:wrap; justify-content:center; }
+#pauseActions[hidden], #pauseBack[hidden] { display:none; }
+#pauseBack { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:10000; }
