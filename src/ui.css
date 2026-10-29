@@ -1,0 +1,19 @@
+/* Allow the original dialogs to scroll on shorter desktop screens. */
+.mode-screen {
+  overflow-y: auto;
+}
+.mode-panel {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 44px);
+  overflow-y: auto;
+}
+.asset-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #0a151b;
+  color: #68f0f0;
+  font: 700 16px Arial, sans-serif;
+}

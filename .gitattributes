@@ -1,0 +1,2 @@
+# Never apply Windows line-ending conversion to model or terrain bytes.
+assets/*.bin binary

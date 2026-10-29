@@ -1,0 +1,8 @@
+__pycache__/
+node_modules/
+.venv/
+test-results/
+.env
+.env.*
+*.zip
+*.zip.*

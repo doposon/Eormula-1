@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Formula Racing 2.17.0 · Spa Accessor & Singapore Finish Fix</title>
+<link rel="stylesheet" href="src/styles.css">
+<link rel="stylesheet" href="src/ui.css"></head><body>
+<canvas id="glcanvas" aria-label="Interactive car and camera test on a fixed oval circuit"></canvas>
+<div id="speedFx" aria-hidden="true"></div>
+<div class="topbar"><div class="brand"><div class="title">FORMULA RACING 2.17.0 / MULTI-CIRCUIT</div><div class="sub">MULTI-CIRCUIT · PLAYER MODEL + CONTROLS PRESERVED · VARIABLE-PACE AI</div></div><div class="actions"><button id="settingsToggle" class="settings-toggle" aria-expanded="false" aria-controls="settingsPanel" title="Game settings">⚙ SETTINGS</button><div id="settingsPanel" class="settings-panel" hidden><div class="settings-head"><strong>GAME SETTINGS</strong><button id="settingsClose" aria-label="Close settings">✕</button></div><div class="settings-section">CAMERA VIEWS <small>Shortcut: V to switch</small></div><div class="camera-choice-grid"><button class="camera-choice" data-view="chase">CHASE</button><button class="camera-choice" data-view="orbit">ORBIT</button><button class="camera-choice" data-view="cockpit">COCKPIT</button><button class="camera-choice" data-view="frontwing">FRONT WING</button><button class="camera-choice" data-view="rear">REAR VIEW</button></div><div class="settings-section">TRACK OVERVIEW <small>Independent overview mode; not included in V cycling</small></div><button id="fullTrackView" class="full-track-setting">FULL TRACK OVERVIEW</button><div class="settings-section">ADVANCED &amp; DEBUG</div><div class="settings-old-buttons"><button id="chaseView">CHASE CAM</button><button id="topView">ORBIT CAR</button><button id="resetView">RESET VIEW</button><button id="sunAngleButton" title="Change sunlight angle and real 3D projected shadows">SUN: AFTERNOON</button><button id="ferrariUvToggle" title="Cycles Ferrari texture orientation: normal, flip V, flip U, flip both">FERRARI UV: FLIP V</button><button id="renderQuality" title="Cycles render resolution only; physics and textures stay unchanged">RES: 100%</button><button id="resetCar">RESET GRID (R)</button></div></div></div></div>
+<button id="helpToggle" title="Show controls and information" aria-controls="gameInfo" aria-expanded="false">ⓘ HELP</button><div class="info help-collapsed" id="gameInfo"><b>W</b> accelerate · <b>S</b> progressive brake / reverse · <b>A / D</b> steer · <b>SPACE</b> pause/resume (3-second restart) · <b>R</b> reset player + NPC grid · <b>V</b> cycle camera views.<br>Player model: <span id="modelStatus">LOADING CUSTOM CAR…</span><br>NPC model: <span id="npcModelStatus">LOADING AI CAR…</span><br>Ferrari model: <span id="ferrariModelStatus">LOADING FERRARI SF26…</span> · Mercedes model: <span id="mercedesModelStatus">LOADING MERCEDES…</span> · Williams, Alpine, Audi, Haas, Racing Bulls, Aston Martin and Cadillac load when selected · GHOST SPAWNS AFTER YOUR FIRST COMPLETE LAP; IT REPLAYS YOUR BEST RECORDED LAP<br>Tyre lockup requires a high-speed brake application: above 240 km/h it can happen sooner; from 210 km/h it requires a longer sustained brake. Low-speed braking will not lock the tyres. Track selection: Oval Circuit, Silverstone GP, Shanghai International, Spa-Francorchamps and Singapore. Spa and Singapore use your annotated original tracks; the original model is kept at full geometry / texture quality. Singapore uses its annotated FINISH .020 as a timing gate, and Spa uses its authored .026 finish marker. Silverstone uses a provisional virtual finish gate for lap timing; exact painted-line alignment still needs visual calibration. No independent NPC race line or difficulty selection: finish a valid lap to summon your best-lap ghost. Shanghai collisions use actual vertical geometry rather than an invisible raceline boundary. All eleven team models are available: McLaren, Red Bull, Ferrari, Mercedes, Aston Martin, Alpine, Williams, Haas, Racing Bulls, Audi and Cadillac. Green is grass; driving off-road causes strong speed loss and very weak acceleration. Road, edge lines and low red/white kerbs are prebuilt. Cars cast accurate sun-directed silhouettes instead of ellipse decals; the SUN button changes the light angle. Mouse drag orbits; scroll zooms. Chase camera pulls back smoothly and moves forward when braking. Ferrari UV test: use FERRARI UV to compare texture orientations.</div><div id="telemetry"><div class="telelabel">SPEED</div><div class="speedline"><span id="speed">000</span><small> km/h</small></div><div class="gearlines"><span id="gear">N</span><span id="surface">TRACK</span></div><div class="gearlines"><span>TURN RADIUS</span><span id="radius">—</span></div></div>
+<div id="practiceTiming" class="timing-panel hidden" aria-live="polite">
+  <div class="timing-heading"><span>BEST LAP CHALLENGE</span><span id="timingLapNumber">LAP 1</span></div>
+  <div class="timing-row total"><span>TOTAL TIME</span><strong id="sessionTime">00:00.000</strong></div>
+  <div class="timing-row"><span>CURRENT LAP</span><strong id="currentLapTime">00:00.000</strong></div>
+  <div class="timing-row"><span>LAST LAP</span><strong id="lastLapTime">—</strong></div>
+  <div class="timing-row"><span>VS PREVIOUS</span><strong id="lapDelta">—</strong></div>
+  <div id="ghostState" style="padding:5px 0;color:#92d8dc;font-size:10px">GHOST: waiting for your first valid lap</div>
+  <div id="lapHistory" class="lap-history"><div class="lap-empty">No completed laps yet</div></div>
+</div>
+
+<div id="modeScreen" class="mode-screen" role="dialog" aria-modal="true" aria-labelledby="modeTitle">
+  <div class="mode-panel">
+    <div class="mode-eyebrow">FORMULA RACING · BUILD 2.14.4</div>
+    <h1 id="modeTitle">CHOOSE YOUR<br><span>RACE MODE</span></h1>
+    <p class="mode-intro">Same car and physics. Choose a circuit, then choose your practice opponent pace.</p>
+    <div class="mode-grid">
+      <button id="practiceMode" class="mode-card mode-active">
+        <span class="mode-index">01 / DRIVE</span><strong>PRACTICE</strong>
+        <span class="mode-desc">Free driving with the AI car. Choose Oval or Silverstone, then select Easy, Normal, Hard or Master.</span>
+        <span class="mode-action">ENTER PRACTICE <b>→</b></span>
+      </button>
+      <button id="grandPrixMode" class="mode-card mode-soon">
+        <span class="mode-index">02 / RACE WEEKEND</span><strong>GRAND PRIX</strong>
+        <span class="mode-tag">COMING SOON</span>
+        <span class="mode-desc">Grid start, race distance, results and more AI opponents.</span>
+        <span class="mode-action">MODE RESERVED <b>↗</b></span>
+      </button>
+    </div>
+    <div class="mode-footer">PRACTICE IS PLAYABLE NOW · GRAND PRIX IS A RESERVED PLACEHOLDER</div>
+  </div>
+</div>
+<div id="trackScreen" class="mode-screen hidden" role="dialog" aria-modal="true" aria-labelledby="trackTitle">
+  <div class="mode-panel">
+    <div class="mode-eyebrow">FORMULA RACING · CIRCUIT SELECT</div>
+    <h1 id="trackTitle">CHOOSE YOUR<br><span>CIRCUIT</span></h1>
+    <p class="mode-intro">Choose Oval, Silverstone, Shanghai, Spa or Singapore. Spa and Singapore load their unmodified original GLB textures on selection as free-drive previews.</p>
+    <div class="mode-grid">
+      <button id="selectOvalTrack" class="mode-card mode-active">
+        <span class="mode-index">TRACK 01 / SHORT</span><strong>OVAL CIRCUIT</strong>
+        <span class="mode-desc">The familiar compact closed loop. Best for testing acceleration, braking, tyre lock and camera behaviour.</span>
+        <span class="mode-action">SELECT OVAL <b>→</b></span>
+      </button>
+      <button id="selectSilverstoneTrack" class="mode-card" disabled>
+        <span class="mode-index">TRACK 02 / GRAND PRIX</span><strong>SILVERSTONE GP</strong>
+        <span class="mode-desc">New 2024-model Silverstone visual replacement. Free-drive preview; AI path and lap timing require route calibration.</span>
+        <span class="mode-action">SELECT SILVERSTONE PREVIEW <b>→</b></span>
+      </button>
+      <button id="selectShanghaiTrack" class="mode-card" disabled>
+        <span class="mode-index">TRACK 03 / INTERNATIONAL</span><strong>SHANGHAI INTERNATIONAL CIRCUIT</strong>
+        <span class="mode-desc">Your imported Shanghai 2018 circuit model. Pit complex, start lights, grid markings, asphalt, grass and kerbs are included; distant scenery is simplified.</span>
+        <span class="mode-action">LOADING SHANGHAI… <b>→</b></span>
+      </button>
+      <button id="selectSpaTrack" class="mode-card">
+        <span class="mode-index">TRACK 04 / BELGIUM · PREVIEW</span><strong>SPA-FRANCORCHAMPS</strong>
+        <span class="mode-desc">Original 2022 GLB visual mesh; Blender-labelled ROAD, KERB, WALL and GRID_000–025 with separate FINISH. Free driving; no verified AI path yet.</span>
+        <span class="mode-action">LOAD ORIGINAL SPA <b>→</b></span>
+      </button>
+      <button id="selectSingaporeTrack" class="mode-card">
+        <span class="mode-index">TRACK 05 / SINGAPORE · PREVIEW</span><strong>MARINA BAY / SINGAPORE</strong>
+        <span class="mode-desc">Original GLB, 30 preserved grid markers, missing .021, and .020 reserved exclusively for FINISH. Free driving; mesh terrain and AI pending calibration.</span>
+        <span class="mode-action">LOAD SINGAPORE <b>→</b></span>
+      </button>
+    </div>
+    <div class="mode-footer">FIVE CIRCUITS · SPA/SINGAPORE ARE PREVIEW MAPS · ORIGINAL MODEL DETAILS RETAINED</div>
+    <button id="backFromTrackSelect" class="diff-back">← BACK TO CIRCUIT SELECT</button>
+  </div>
+</div>
+<div id="teamScreen" class="mode-screen hidden" role="dialog" aria-modal="true" aria-labelledby="teamTitle">
+  <div class="mode-panel">
+    <div class="mode-eyebrow">FORMULA RACING · GRID SELECTION</div>
+    <h1 id="teamTitle">CHOOSE YOUR<br><span>TEAMS</span></h1>
+    <p class="mode-intro">Choose your team and the AI opponent team. All eleven team models are available; additional models load only when selected to save memory. Red Bull uses the detailed 2026 RB22 model.</p>
+    <div class="team-grid">
+      <label class="team-select-card" for="playerTeamSelect">
+        <span class="team-role">PLAYER · YOU DRIVE</span>
+        <strong>Your team</strong>
+        <select id="playerTeamSelect" aria-label="Choose your team">
+          <option value="mclaren" selected>McLaren · Available</option>
+          <option value="redbull">Red Bull RB22 · Available</option>
+          <option value="ferrari">Ferrari · Available</option>
+          <option value="mercedes">Mercedes · Available</option>
+          <optgroup label="Additional available teams">
+            <option value="astonmartin">Aston Martin · Available</option>
+            <option value="alpine">Alpine · Available</option>
+            <option value="williams">Williams · Available</option>
+            <option value="haas">Haas · Available</option>
+            <option value="racingbulls">Racing Bulls · Available</option>
+            <option value="audi">Audi · Available</option>
+            <option value="cadillac">Cadillac · Available</option>
+          </optgroup>
+        </select>
+        <small>The selected team's model becomes your player car.</small>
+      </label>
+      <label class="team-select-card" for="npcTeamSelect">
+        <span class="team-role">GHOST · BEST LAP</span>
+        <strong>Ghost car</strong>
+        <select id="npcTeamSelect" aria-label="Choose NPC team">
+          <option value="redbull" selected>Red Bull RB22 · Available</option>
+          <option value="mclaren">McLaren · Available</option>
+          <option value="ferrari">Ferrari · Available</option>
+          <option value="mercedes">Mercedes · Available</option>
+          <optgroup label="Additional available teams">
+            <option value="astonmartin">Aston Martin · Available</option>
+            <option value="alpine">Alpine · Available</option>
+            <option value="williams">Williams · Available</option>
+            <option value="haas">Haas · Available</option>
+            <option value="racingbulls">Racing Bulls · Available</option>
+            <option value="audi">Audi · Available</option>
+            <option value="cadillac">Cadillac · Available</option>
+          </optgroup>
+        </select>
+        <small>This car appears only after you complete your first valid lap, replaying your best lap. You may choose either available team.</small>
+      </label>
+    </div>
+    <div class="team-reserve-note">11 TEAMS · BEST-LAP GHOST REPLAY · NO AI DIFFICULTY</div>
+    <div id="teamLoadStatus" class="team-load-status" aria-live="polite">Choose your player and future best-lap ghost car; the ghost stays hidden until a valid lap is completed.</div>
+    <div class="team-actions">
+      <button id="backToDifficulty" class="diff-back">← BACK TO DIFFICULTY</button>
+      <button id="confirmTeamSelection" class="team-start">CONFIRM TEAMS & CONTINUE →</button>
+    </div>
+  </div>
+</div>
+<div id="startLights" class="start-lights hidden" aria-label="Five red start lights">
+  <span class="lights-label">WAIT FOR LIGHTS OUT</span>
+  <span class="light-lamp"></span><span class="light-lamp"></span><span class="light-lamp"></span><span class="light-lamp"></span><span class="light-lamp"></span>
+</div>
+<div id="error"><div class="errbox"><h2>WebGL unavailable</h2><p>This test needs WebGL enabled in the browser. Try a current version of Chrome or Edge with hardware acceleration enabled.</p></div></div>
+<script type="module" src="src/main.js"></script></body></html>

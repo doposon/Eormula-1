@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "id": "asset-001",
+      "path": "assets/user_car_glb_deflate_b64.bin",
+      "bytes": 21505505,
+      "sha256": "8b1c5b4c29f210cbb941d0d6e2a26eb79ad7d0bd48293e33117a48da3f41afc2",
+      "quote": "'",
+      "label": "user_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-002",
+      "path": "assets/npc_car_glb_deflate_b64.bin",
+      "bytes": 18369035,
+      "sha256": "46a8c676caedc2c7b08590893e5a61da2f5c6a3e250dc82117f3fb3d0fdfdbe3",
+      "quote": "'",
+      "label": "npc_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-003",
+      "path": "assets/ferrari_car_glb_deflate_b64.bin",
+      "bytes": 8450323,
+      "sha256": "3fa03bc21d63873b355f15ee71050a15782e136d658d8b0572344810c90020f6",
+      "quote": "'",
+      "label": "ferrari_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-004",
+      "path": "assets/mercedes_car_glb_deflate_b64.bin",
+      "bytes": 20746510,
+      "sha256": "6b4c6062fee3296efe426e9150869dfe56e514fb843aefa969080301c94e8391",
+      "quote": "'",
+      "label": "mercedes_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-005",
+      "path": "assets/williams_car_glb_deflate_b64.bin",
+      "bytes": 5876077,
+      "sha256": "921d17546273b6e127149944a1149fb59c55f6fcf6bad21ee603c650563cb7f5",
+      "quote": "'",
+      "label": "williams_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-006",
+      "path": "assets/alpine_car_glb_deflate_b64.bin",
+      "bytes": 5773566,
+      "sha256": "61422c5588daada8727181f9dedae578a596e6e12d94f61330764a8d2e5cbd63",
+      "quote": "'",
+      "label": "alpine_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-007",
+      "path": "assets/audi_car_glb_deflate_b64.bin",
+      "bytes": 5923007,
+      "sha256": "351c1d2fb6a90bf920a819aba338fec1f088b5ea35bbc037a442409b7ba4c83b",
+      "quote": "'",
+      "label": "audi_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-008",
+      "path": "assets/haas_car_glb_deflate_b64.bin",
+      "bytes": 6027082,
+      "sha256": "38f6a778d701430f22e6af249e651ea83051e83261f257f57c6c91ededf40082",
+      "quote": "'",
+      "label": "haas_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-009",
+      "path": "assets/racingbulls_car_glb_deflate_b64.bin",
+      "bytes": 6018773,
+      "sha256": "63954a9c302fec18432a3ebffc576b2ba9a72c84790db96ab17da276b6aaead1",
+      "quote": "'",
+      "label": "racingbulls_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-010",
+      "path": "assets/astonmartin_car_glb_deflate_b64.bin",
+      "bytes": 5997387,
+      "sha256": "dac383c0587cb3b51c787508598f37db09fc312e295734cc56611761eb2537fb",
+      "quote": "'",
+      "label": "astonmartin_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-011",
+      "path": "assets/cadillac_car_glb_deflate_b64.bin",
+      "bytes": 6254929,
+      "sha256": "f7a1d2209c8c1b24a11ee0aad9400606db86e1d2407b9c71c341f931aab526a0",
+      "quote": "'",
+      "label": "cadillac_car_glb_deflate_b64"
+    },
+    {
+      "id": "asset-012",
+      "path": "assets/track_pos_b64.bin",
+      "bytes": 426888,
+      "sha256": "1542c6bd790b31fe370585e7aaedd282cf206ac2f3619ce4259f025dafbe4498",
+      "quote": "'",
+      "label": "track_pos_b64"
+    },
+    {
+      "id": "asset-013",
+      "path": "assets/track_col_b64.bin",
+      "bytes": 426888,
+      "sha256": "14f0f1c455429737763722c5a0e8d4a28c39b0e4ea35677cce69ead719dc7a7f",
+      "quote": "'",
+      "label": "track_col_b64"
+    },
+    {
+      "id": "asset-014",
+      "path": "assets/car_pos_b64.bin",
+      "bytes": 87264,
+      "sha256": "67a1cc620df0a4a8227ed2516661f89492d590679130bffe5a71e5c3d0ceb7eb",
+      "quote": "'",
+      "label": "car_pos_b64"
+    },
+    {
+      "id": "asset-015",
+      "path": "assets/car_col_b64.bin",
+      "bytes": 87264,
+      "sha256": "9e6dba963eaf2c2f1f279100ea538bd125c935dd0b74eec045127bf1512c993d",
+      "quote": "'",
+      "label": "car_col_b64"
+    },
+    {
+      "id": "asset-016",
+      "path": "assets/shanghai_track_deflate_b64.bin",
+      "bytes": 6902653,
+      "sha256": "6a55973633aa35b93e8a1e29363dd25ec25b79957d7a69e491db3272167b395f",
+      "quote": "'",
+      "label": "shanghai_track_deflate_b64"
+    },
+    {
+      "id": "asset-017",
+      "path": "assets/shanghai_route_b64.bin",
+      "bytes": 108220,
+      "sha256": "452a8d5f9947e776d93cc3e2d4a1b16fe57cc0565431cb5b2bfc1c309475e615",
+      "quote": "'",
+      "label": "shanghai_route_b64"
+    },
+    {
+      "id": "asset-018",
+      "path": "assets/shanghai_original_kerb_b64.bin",
+      "bytes": 10822,
+      "sha256": "54999745ff43d856dc0d92c4c87b9d3ec8f85089d444050e0a158c25ca6fa08a",
+      "quote": "'",
+      "label": "shanghai_original_kerb_b64"
+    },
+    {
+      "id": "asset-019",
+      "path": "assets/silverstone_source_glb_b64.bin",
+      "bytes": 46500477,
+      "sha256": "ab0d071e36b1253f8c1c36483a4a23522154f0d45e5a52b869d984cb4a92c2cd",
+      "quote": "'",
+      "label": "silverstone_source_glb_b64"
+    },
+    {
+      "id": "asset-020",
+      "path": "assets/silverstone_route_b64.bin",
+      "bytes": 94256,
+      "sha256": "0d089ad1c58499a2245b8a94db354d5476fa27e554e036464b4454aad04e18ff",
+      "quote": "'",
+      "label": "silverstone_route_b64"
+    },
+    {
+      "id": "asset-021",
+      "path": "assets/silverstone_ground_b64.bin",
+      "bytes": 86287,
+      "sha256": "03e05b571344caf1dc962fa2975eb76dfba726c88d7c9e9c36d3f411f67f0aca",
+      "quote": "'",
+      "label": "silverstone_ground_b64"
+    },
+    {
+      "id": "asset-022",
+      "path": "assets/spa_precise_terrain_b64.bin",
+      "bytes": 329085,
+      "sha256": "d0a0d2c9414f4926ba4fde5bb2145f8eaba944b49b0c989b17e5838619527433",
+      "quote": "'",
+      "label": "spa_precise_terrain_b64"
+    },
+    {
+      "id": "asset-023",
+      "path": "assets/spa_road_field_b64.bin",
+      "bytes": 74812,
+      "sha256": "79f8d052d708b9763c24acbc418767f4cbc066ac2d3ef062e06f720e2183b6ae",
+      "quote": "'",
+      "label": "spa_road_field_b64"
+    },
+    {
+      "id": "asset-024",
+      "path": "assets/spa_original_glb_b64.bin",
+      "bytes": 46341359,
+      "sha256": "333191d89d1175ef6ec03a64b670becf00126229494358925abb70997168aab6",
+      "quote": "'",
+      "label": "spa_original_glb_b64"
+    },
+    {
+      "id": "asset-025",
+      "path": "assets/singapore_original_glb_b64.bin",
+      "bytes": 29761451,
+      "sha256": "9eae1e0c95fff1cc3a2f32df47d0315f20c1cc3a24c8dd74d15fc6c6af724515",
+      "quote": "'",
+      "label": "singapore_original_glb_b64"
+    },
+    {
+      "id": "asset-026",
+      "path": "assets/asset-026.bin",
+      "bytes": 67935,
+      "sha256": "d148da27d803315379b28eac0bd8afaec530ac51ace7f9d460c7266b0fe308e5",
+      "quote": "'",
+      "label": "asset-026"
+    },
+    {
+      "id": "asset-027",
+      "path": "assets/asset-027.bin",
+      "bytes": 114627,
+      "sha256": "bb51bbd0f48684899994e02a4ca329f19fe6c6731bc00515e1fce99833edd6dc",
+      "quote": "'",
+      "label": "asset-027"
+    },
+    {
+      "id": "asset-028",
+      "path": "assets/asset-028.bin",
+      "bytes": 368863,
+      "sha256": "1bbf8bd1464a1a9092f324ee15293d003b8cb51a497edb5cc4cf5fd9c3021674",
+      "quote": "'",
+      "label": "asset-028"
+    }
+  ]
+}
