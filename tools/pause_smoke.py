@@ -40,9 +40,10 @@ try:
   with page.expect_download(timeout=180000) as info:page.locator('#downloadOffline').click()
   path=out/'Formula-Racing-2.17.2.html';info.value.save_as(str(path));assert path.stat().st_size>300_000_000
   data=path.read_text();assert '__embeddedAssets["asset-' not in data;assert 'src="src/main.js"' not in data
+  page.close()
   offline=browser.new_page();offline.set_default_timeout(180000);offline.on('pageerror',lambda e:errors.append(str(e)))
   # HTTP transport only; file:// is prohibited by this cloud browser's admin policy.
-  offline.goto(base+'test-results/pause/Formula-Racing-2.17.2.html',wait_until='domcontentloaded');offline.locator('#practiceMode').click();offline.locator('#selectOvalTrack').click();offline.locator('#confirmTeamSelection').click();offline.locator('#startLights.hidden').wait_for(state='attached');offline.keyboard.press('Escape');offline.locator('#pauseQuit').wait_for(state='visible')
+  offline.goto(base+'test-results/pause/Formula-Racing-2.17.2.html',wait_until='domcontentloaded');offline.locator('#practiceMode').click();offline.locator('#selectOvalTrack').click();offline.locator('#confirmTeamSelection').click();offline.locator('#teamScreen.hidden').wait_for(state='attached');offline.locator('#startLights.hidden').wait_for(state='attached');offline.keyboard.press('Escape');offline.locator('#pauseQuit').wait_for(state='visible')
   assert not errors,errors
   print('PASS self-contained HTML download and exported-game pause menu; no JS errors',flush=True)
   browser.close()
