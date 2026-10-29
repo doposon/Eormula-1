@@ -1,3 +1,5 @@
+import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
+
 export default function startGame(__embeddedAssets) {
 
 window.addEventListener('error',function(event){
@@ -158,10 +160,10 @@ const skyProg=gl.createProgram();gl.attachShader(skyProg,shader(gl.VERTEX_SHADER
 if(!gl.getProgramParameter(skyProg,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(skyProg));
 const skyLoc={pos:gl.getAttribLocation(skyProg,'aSkyCorner'),mode:gl.getUniformLocation(skyProg,'uSkyMode'),aspect:gl.getUniformLocation(skyProg,'uSkyAspect'),tanHalfFov:gl.getUniformLocation(skyProg,'uSkyTanHalfFov'),forward:gl.getUniformLocation(skyProg,'uSkyForward'),right:gl.getUniformLocation(skyProg,'uSkyRight'),up:gl.getUniformLocation(skyProg,'uSkyUp')};
 const skyBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,1,1,-1,-1,1,1,-1,1]),gl.STATIC_DRAW);
-function renderAtmosphericSky(cameraEye,cameraTarget,aspect,fovDegrees){
+function renderAtmosphericSky(cameraEye,cameraTarget,aspect,fovDegrees,cameraUp=[0,1,0]){
  gl.disable(gl.DEPTH_TEST);gl.depthMask(false);gl.disable(gl.BLEND);gl.disable(gl.STENCIL_TEST);
  const forward=norm(sub(cameraTarget,cameraEye));
- let right=cross(forward,[0,1,0]);const rLen=Math.hypot(...right);
+ let right=cross(forward,cameraUp);const rLen=Math.hypot(...right);
  right=rLen>1e-5?right.map(v=>v/rLen):[1,0,0];
  const up=norm(cross(right,forward));
  gl.useProgram(skyProg);
@@ -1368,14 +1370,18 @@ function updateRideHeights(dt){
  // Small spring-damped road feel on the oval, Shanghai, Silverstone, Spa and Singapore.
  updateRoadFeedback(dt);
 }
+function playerBodyFrame(){
+ const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack))?playerRideY+playerVisualSuspension.heave:trackGroundY(carX,carZ);
+ return carBodyFrame(selectedPlayerTeam,carX,gy,carZ,carHeading,playerVisualSuspension);
+}
 function drawCustomCar(viewProj){
  activeCarSuspension=playerVisualSuspension;
- const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack))?playerRideY+playerVisualSuspension.heave:trackGroundY(carX,carZ);
- if(selectedPlayerTeam==='redbull')return drawSingleCarAt(viewProj,npcCarAsset,carX,.075+gy,carZ,carHeading);
- if(selectedPlayerTeam==='ferrari')return drawSingleCarAt(viewProj,ferrariCarAsset,carX,.5+gy,carZ,carHeading+Math.PI);
- if(selectedPlayerTeam==='mercedes')return drawSingleCarAt(viewProj,mercedesCarAsset,carX,.5+gy,carZ,carHeading+Math.PI);
- if(additionalTeamAssets[selectedPlayerTeam])return drawSingleCarAt(viewProj,additionalTeamAssets[selectedPlayerTeam],carX,.5+gy,carZ,carHeading+Math.PI);
- return drawGroupedCarAt(viewProj,userCarAsset,carX,.577+gy,carZ,carHeading,wheelSpin,frontWheelSteer);
+ const p=playerBodyFrame();
+ if(selectedPlayerTeam==='redbull')return drawSingleCarAt(viewProj,npcCarAsset,p.x,p.y,p.z,p.heading);
+ if(selectedPlayerTeam==='ferrari')return drawSingleCarAt(viewProj,ferrariCarAsset,p.x,p.y,p.z,p.heading);
+ if(selectedPlayerTeam==='mercedes')return drawSingleCarAt(viewProj,mercedesCarAsset,p.x,p.y,p.z,p.heading);
+ if(additionalTeamAssets[selectedPlayerTeam])return drawSingleCarAt(viewProj,additionalTeamAssets[selectedPlayerTeam],p.x,p.y,p.z,p.heading);
+ return drawGroupedCarAt(viewProj,userCarAsset,p.x,p.y,p.z,p.heading,wheelSpin,frontWheelSteer);
 }
 async function loadNpcCar(){
  const status=document.getElementById('npcModelStatus');
@@ -1781,9 +1787,9 @@ function orbitCar(){cameraMode='orbit';yaw=-.72;pitch=.66;distance=15;syncCamera
 function fitTrack(){const aspect=Math.max(.45,canvas.clientWidth/Math.max(1,canvas.clientHeight));if(selectedTrack==='spa')distance=6900;else if(selectedTrack==='singapore')distance=4800;else if(selectedTrack==='shanghai')distance=Math.max(1750,(980/(Math.tan(21*rad)*aspect))*1.2);else if(selectedTrack==='silverstone')distance=Math.max(1600,(880/(Math.tan(21*rad)*aspect))*1.25);else distance=Math.max(126,78/(Math.tan(21*rad)*aspect));}
 function fullTrack(){cameraMode='track';yaw=-.28;pitch=1.20;fitTrack();syncCameraChoice();}
 function chase(){cameraMode='chase';syncCameraChoice();}
-const CAMERA_SEQUENCE=['chase','cockpit','frontwing','rear','orbit'];
+const CAMERA_SEQUENCE=DRIVING_CAMERAS;
 function setCameraView(mode){
- if(mode!=='track'&&!CAMERA_SEQUENCE.includes(mode))return;
+ if(mode!=='track'&&mode!=='orbit'&&!CAMERA_SEQUENCE.includes(mode))return;
  if(mode==='orbit'){orbitCar();}else if(mode==='track'){fullTrack();}else{cameraMode=mode;}
  syncCameraChoice();
 }
@@ -1975,7 +1981,7 @@ let activeCarCameraPosition=[0,6,12];
 function draw(now,dt){
  gl.useProgram(prog);
  const dpr=Math.min(window.devicePixelRatio||1,2)*renderResolutionScale,w=Math.max(1,Math.floor(canvas.clientWidth*dpr)),h=Math.max(1,Math.floor(canvas.clientHeight*dpr));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}gl.viewport(0,0,w,h);gl.clearStencil(0);gl.stencilMask(255);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT|gl.STENCIL_BUFFER_BIT);
- const aspect=w/h;let eye,center;
+ const aspect=w/h;let eye,center,cameraUp=[0,1,0],nearPlane=selectedTrack==='silverstone'?.45:.1;
  let currentDisplayKmh=carSpeed<0?Math.abs(carSpeed)*3.6:(Math.abs(carSpeed)/MAX_WORLD_SPEED)*MAX_DASH_SPEED;
  const speedRatio=clamp(currentDisplayKmh/MAX_DASH_SPEED,0,1);
  let fovDegrees=42;
@@ -2005,8 +2011,14 @@ function draw(now,dt){
    const bump=playerVisualSuspension.heave*.18;
    // World-space mounts: share terrain elevation with the car, not with the orbit camera.
    if(cameraMode==='cockpit'){
-     eye=[carX+fx*.45,gy+1.85+bump,carZ+fz*.45];
-     center=[eye[0]+fx*22,eye[1]-.07,eye[2]+fz*22];fovDegrees=66;
+     const mounted=cockpitCamera(playerBodyFrame());
+     if(mounted){
+       eye=mounted.eye;center=mounted.center;cameraUp=mounted.up;
+       fovDegrees=mounted.fov;nearPlane=mounted.near;
+     }else{
+       eye=[carX+fx*.45,gy+1.85+bump,carZ+fz*.45];
+       center=[eye[0]+fx*22,eye[1]-.07,eye[2]+fz*22];fovDegrees=66;
+     }
    }else if(cameraMode==='frontwing'){
      eye=[carX+fx*2.25,gy+.40+bump,carZ+fz*2.25];
      center=[eye[0]+fx*24,eye[1]-.04,eye[2]+fz*24];fovDegrees=76;
@@ -2020,9 +2032,9 @@ function draw(now,dt){
    eye=[target[0]+distance*cp*Math.sin(yaw),target[1]+distance*sp,target[2]+distance*cp*Math.cos(yaw)];
    center=target;
  }
- const view=lookAt(eye,center,[0,1,0]),proj=perspective(fovDegrees*rad,aspect,selectedTrack==='silverstone'?.45:.1,(['silverstone','shanghai','spa','singapore'].includes(selectedTrack))?12000:650),mvp=multiply(proj,view);
+ const view=lookAt(eye,center,cameraUp),proj=perspective(fovDegrees*rad,aspect,nearPlane,(['silverstone','shanghai','spa','singapore'].includes(selectedTrack))?12000:650),mvp=multiply(proj,view);
  activeCarCameraPosition=eye;
- renderAtmosphericSky(eye,center,aspect,fovDegrees);
+ renderAtmosphericSky(eye,center,aspect,fovDegrees,cameraUp);
  renderSunDisc(mvp,eye,h);gl.useProgram(prog);
  gl.uniformMatrix4fv(locMvp,false,mvp);
  gl.uniformMatrix4fv(locModel,false,IDENTITY);gl.uniform1f(locOpacity,1);

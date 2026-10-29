@@ -1,5 +1,16 @@
 # 整理版本验证结果
 
+## 2.17.1 座舱修复验证（最终范围：RB22 / SF26）
+
+- `node tools/camera.test.mjs`：4/4 通过；验证四视角循环、两车模型方向、坡面/侧倾下镜头相对车身固定，以及其他九支车队使用旧镜头分支。
+- `python3 tools/camera_smoke.py`：6/6 通过（Oval/RB22、Oval/SF26、Shanghai/SF26、Silverstone/RB22、Spa/SF26、Singapore/RB22）。画面像素对比确认可见真实玩家车身；人工检查截图确认 Halo 横梁下方能看到赛道和方向盘。
+- 六个场景均经过四视角切换、座舱起步及 WebGL 上下文检查，无未捕获 JavaScript 异常或弹窗错误。
+- `python3 tools/verify_assets.py --baseline`：28 份资源哈希不变，历史首次导入仍能重建原始 HTML 指纹。当前代码有明确功能修改，不再要求它与原始脚本相同。
+- 单文件通过导出器生成；当前云浏览器的管理策略禁止 `file://`，因此不能在这里证明 Windows 双击运行。单文件已通过本地 HTTP 下的 SF26 座舱/起步检查，无独立资源请求或未捕获 JavaScript 异常；本机直接打开仍需实际复测。
+- 长距离坡面驾驶舒适度、所有分辨率和真实 GPU 性能尚未全面验证。本轮没有修改车辆物理或增补内饰模型。
+
+以下为前一轮资源整理的历史结果。
+
 日期：2026-10-29。环境：Linux 云环境、Chromium、Playwright 1.62.0、SwiftShader 软件 WebGL。
 
 ## 已通过
