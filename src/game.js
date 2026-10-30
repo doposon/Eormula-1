@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=audio4';
 
 export default function startGame(__embeddedAssets) {
 
@@ -2458,17 +2458,17 @@ loadShanghaiTrack();
 let gameAudioContext,gameAudioEngine;
 const audioControls=document.createElement('div');
 audioControls.className='settings-section';
-audioControls.innerHTML='<label>ENGINE SOUND · 引擎声浪<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">选择实验台用的约 75 秒录音，即可开启声浪</p><label>音量 <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
+audioControls.innerHTML='<label>ENGINE SOUND 04 · 引擎声浪<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">选择实验台用的约 75 秒录音，即可开启声浪</p><label>音量 <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
 const audioSetup=document.createElement('div');audioSetup.id='audioSetup';audioSetup.setAttribute('role','dialog');audioSetup.setAttribute('aria-modal','true');audioSetup.setAttribute('aria-labelledby','audioSetupTitle');
 audioSetup.innerHTML='<div class="audio-setup-card"><h1 id="audioSetupTitle">开启引擎声浪</h1><p>选择你在声浪实验台使用的原视频或音频。读取完成后，点“进入游戏”。</p><div id="audioSetupControls"></div><div class="audio-setup-actions"><button id="audioSetupContinue" disabled>进入游戏</button><button id="audioSetupSkip">暂时跳过</button></div></div>';
 document.body.append(audioSetup);document.getElementById('audioSetupControls').append(audioControls);
 document.getElementById('audioSetupContinue').onclick=document.getElementById('audioSetupSkip').onclick=()=>{audioSetup.hidden=true;document.getElementById('practiceMode').focus();};
-for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE SOUND · 引擎声浪';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
+for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE SOUND 04 · 引擎声浪';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
 const audioInput=document.getElementById('engineAudioFile'),audioStatus=document.getElementById('engineAudioStatus');
 audioInput.onchange=async()=>{const file=audioInput.files[0];if(!file)return;audioInput.disabled=true;
  try{gameAudioContext??=new AudioContext();await gameAudioContext.resume();audioStatus.textContent='正在读取引擎声浪…';
  const decoded=await gameAudioContext.decodeAudioData(await file.arrayBuffer());if(Math.abs(decoded.duration-75.392)>.2)throw Error('请选择实验台用的约 75 秒原录音');
- gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='已载入你确认的标记 · 换挡计时与调试台共用';document.getElementById('audioSetupContinue').disabled=false;
+ gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='声浪 04 已载入 · 松油门增强／一挡持续循环';document.getElementById('audioSetupContinue').disabled=false;
  }catch(error){audioStatus.textContent=error.message||'无法读取音轨，请尝试 MP3 或 M4A';}finally{audioInput.disabled=false;}};
 function updateGameAudio(dt){if(!gameAudioEngine)return;const active=gameStarted&&!gamePaused&&!resumeCountdownActive&&!document.hidden&&audioSetup.hidden;
  if(!gameStarted)gameAudioEngine.reset();

@@ -1,3 +1,7 @@
+## Audio 04
+
+All entry modules now carry the audio4 cache version. The sound menu shows ENGINE SOUND 04. Coast and brake-1 clips receive RMS level correction (peak limited, at most 6x gain), keeping the accepted source ranges and gear durations. Actual Web Audio rendering checks 40 seconds of output, including continuation beyond the scheduling horizon. The original recording remains a local file.
+
 ## Continuous sound update
 
 Coasting now fades to 30% of its starting level, rather than silence. Brake gear 1 retains progressively spaced replays but sustains the last 0.2 seconds between them. Automatic gear durations are unchanged.

@@ -12,7 +12,7 @@ errors=[]
 try:
  with sync_playwright() as p:
   b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader','--autoplay-policy=no-user-gesture-required']);page=b.new_page();page.set_default_timeout(180000);page.on('pageerror',lambda e:errors.append(str(e)))
-  page.route('**/src/game.js',lambda r:r.fulfill(body=source,content_type='application/javascript'))
+  page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
   page.goto(f'http://127.0.0.1:{server.server_port}/');page.locator('.asset-loading').wait_for(state='detached')
   assert page.locator('#audioSetup').is_visible();page.locator('#audioSetupSkip').click();assert page.locator('#audioSetup').is_hidden();page.locator('#modeScreen button').filter(has_text='ENGINE SOUND').click();page.locator('#engineAudioFile').set_input_files(str(fixture))
   page.wait_for_function('audioTest().loaded');assert page.evaluate('audioTest().volume')<.001
