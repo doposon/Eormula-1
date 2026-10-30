@@ -1,13 +1,13 @@
 export const LIMITS=[0,65,100,140,180,225,270,310,355];
 export class Drive {
  constructor(){this.reset();}
- reset(){this.speed=0;this.gear=1;this.rpm=4000;this.throttle=0;this.brake=0;this.auto=true;this.cooldown=0;this.cut=0;this.blip=0;this.event='怠速';}
+ reset(){this.speed=0;this.gear=1;this.rpm=5500;this.throttle=0;this.brake=0;this.auto=true;this.cooldown=0;this.cut=0;this.blip=0;this.event='怠速';}
  shift(delta){const next=Math.max(1,Math.min(8,this.gear+delta));if(next===this.gear)return;if(delta<0&&this.speed>LIMITS[next]*.98){this.event='转速过高，暂缓降挡';return;}this.gear=next;this.cooldown=.4;if(delta>0){this.cut=.13;this.event='升挡 · 短暂收油';}else{this.blip=.18;this.event='降挡 · 补油';}}
  update(dt){dt=Math.min(.05,Math.max(0,dt));this.cooldown=Math.max(0,this.cooldown-dt);this.cut=Math.max(0,this.cut-dt);this.blip=Math.max(0,this.blip-dt);
  const power=this.cut?0:this.throttle;this.speed=Math.max(0,Math.min(355,this.speed+(power*42/Math.pow(this.gear,.43)-this.brake*90-1.8-this.speed*.018)*dt));
- const target=Math.min(12500,Math.max(4000,4000+this.speed/LIMITS[this.gear]*8500));
+ const target=Math.min(12200,Math.max(5500,5500+this.speed/LIMITS[this.gear]*6700));
  if(this.auto&&!this.cooldown){if(target>11900&&this.throttle>.1)this.shift(1);else if(this.gear>1&&target<6700)this.shift(-1);}
- const desired=Math.min(12800,target+(this.blip?650:0));this.rpm+=(desired-this.rpm)*(1-Math.exp(-dt*15));return this;
+ const desired=Math.min(12500,target+(this.blip?650:0));this.rpm+=(desired-this.rpm)*(1-Math.exp(-dt*7));return this;
  }
 }
 export function loopBuffer(ctx,source,start,length){const rate=source.sampleRate,offset=Math.round(start*rate),n=Math.min(Math.round(length*rate),source.length-offset);if(n<rate*.15)throw Error('片段太短或超出音频范围');const fade=Math.min(Math.floor(rate*.04),Math.floor(n/5)),size=n-fade;const out=ctx.createBuffer(source.numberOfChannels,size,rate);
