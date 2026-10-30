@@ -1,3 +1,17 @@
+# Five-state sound lab (Lab 05)
+
+The main `/sound-lab/` page now opens the five-state editor in `v5/`. Prior four-layer prototypes remain in `v3/` and `v4/`. This iteration changes the independent lab only.
+
+Mark upshift and downshift as complete single events; they play once per actual gear event, at the recording’s original pitch. Mark acceleration, braking in the same gear and no-throttle coasting independently. Only one continuous state plays at a time; loops mute while shift samples play. Unmarked states are silent. The old low/mid/high/coast markers cannot identify these five states and are not automatically reused. Five-state JSON exports use version 3.
+
+Manual gear control is the default. Automatic upshifts wait until the smoothed RPM exceeds 11800 for half a second, allowing the high-pitch section to be heard. Automatic downshifts occur only during braking. The source recording is still chosen locally and is not shipped in the repository.
+
+Validation: `node tools/five_state.test.mjs` checks the full manual RPM sweep, five driving states and automatic shift dwell; `python3 tools/five_state_smoke.py` checks independent markers, throttle/brake/coast routing, single-shot shifts, stop and JSON round-trip in Chromium. These tests use synthetic sound; selection quality for the user’s actual recording requires auditioning.
+
+---
+
+Legacy four-layer lab documentation follows.
+
 # Sound lab prototype
 
 Independent static Web Audio test page. Open `/sound-lab/` on the published site and select a local video/audio file. Audio is decoded in the user's browser; the video is not uploaded. The original supplied MP4 exceeded the workspace's 32 MiB transfer limit, so its contents have not been analysed or auditioned by the developer. No source clip or finished engine sound bank is shipped.

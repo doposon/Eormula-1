@@ -1,0 +1,4 @@
+import assert from 'node:assert/strict';
+import {Drive,STATES} from '../sound-lab/v5/engine.js';
+const d=new Drive();assert.equal(d.auto,false);d.throttle=1;for(let i=0;i<1000;i++)d.update(1/60);assert.equal(d.gear,1);assert.ok(d.rpm>12000);assert.equal(d.state,'accelerate');d.throttle=0;assert.equal(d.state,'coast');d.brake=1;assert.equal(d.state,'decelerate');d.shift(1);assert.equal(d.state,'upshift');const id=d.shiftId;d.shift(1);assert.equal(d.shiftId,id);for(let i=0;i<30;i++)d.update(1/60);assert.equal(d.state,'decelerate');d.speed=20;d.shift(-1);assert.equal(d.state,'downshift');assert.equal(Object.keys(STATES).length,5);
+d.reset();d.auto=true;d.throttle=1;let top=false;for(let i=0;i<1000;i++){d.update(1/60);if(d.rpm>11800)top=true;if(d.gear===2)break;}assert.ok(top);assert.equal(d.gear,2);console.log('PASS manual full sweep, five states, shift events and automatic shift dwell');

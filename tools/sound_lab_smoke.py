@@ -7,13 +7,13 @@ from smoke import QuietServer,ROOT
 fixture=Path(tempfile.gettempdir())/'sound-lab-fixture.mp4'
 subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=c=black:s=160x90:r=10:d=8','-f','lavfi','-i','aevalsrc=0.25*sin(2*PI*(180*t+15*t*t))+0.12*sin(2*PI*(360*t+30*t*t)):s=44100:d=8','-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac','-shortest','-y',str(fixture)],check=True)
 server=ThreadingHTTPServer(('127.0.0.1',0),partial(QuietServer,directory=str(ROOT)));threading.Thread(target=server.serve_forever,daemon=True).start()
-source=(ROOT/'sound-lab/lab.js').read_text().replace('let last=performance.now();', '''window.labTest={state:()=>({playing,gear:drive.gear,rpm:drive.rpm,speed:drive.speed,nodes:engine?.nodes.length}),meter(){if(!this.a){this.a=ctx.createAnalyser();engine.master.connect(this.a);}const v=new Float32Array(this.a.fftSize);this.a.getFloatTimeDomainData(v);return Math.sqrt(v.reduce((s,x)=>s+x*x,0)/v.length);}};let last=performance.now();''')
+source=(ROOT/'sound-lab/v4/lab.js').read_text().replace('let last=performance.now();', '''window.labTest={state:()=>({playing,gear:drive.gear,rpm:drive.rpm,speed:drive.speed,nodes:engine?.nodes.length}),meter(){if(!this.a){this.a=ctx.createAnalyser();engine.master.connect(this.a);}const v=new Float32Array(this.a.fftSize);this.a.getFloatTimeDomainData(v);return Math.sqrt(v.reduce((s,x)=>s+x*x,0)/v.length);}};let last=performance.now();''')
 errors=[]
 try:
  with sync_playwright() as p:
   b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--autoplay-policy=no-user-gesture-required']);page=b.new_page(viewport={'width':1280,'height':900});page.on('pageerror',lambda e:errors.append(str(e)))
-  page.route('**/sound-lab/lab.js',lambda r:r.fulfill(body=source,content_type='application/javascript'))
-  page.goto(f'http://127.0.0.1:{server.server_port}/sound-lab/');assert page.locator('#start').is_disabled()
+  page.route('**/sound-lab/v4/lab.js',lambda r:r.fulfill(body=source,content_type='application/javascript'))
+  page.goto(f'http://127.0.0.1:{server.server_port}/sound-lab/v4/');assert page.locator('#start').is_disabled()
   page.locator('#file').set_input_files(str(fixture));page.wait_for_function('!document.querySelector("#start").disabled',timeout=30000)
   assert page.locator('#clips div').count()==4
   page.locator('#start').click();page.keyboard.down('w');page.wait_for_function('labTest.state().speed>20');page.keyboard.up('w');assert page.evaluate('labTest.state().nodes')==4
