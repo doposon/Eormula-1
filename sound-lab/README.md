@@ -1,4 +1,6 @@
-# Three waveform banks and live acceptance lab (Lab 07.1)
+# Three waveform banks and live acceptance lab (Lab 07.2)
+
+Latest accepted policy: while the brake is held in gear 1, replay its complete clip with silent gaps increasing by 0.15 seconds each time. Any pedal release into coasting starts the selected clip as an infinite loop, fading with `exp(-elapsed/6)` regardless of prior downshifts. All scheduled repeats are cancelled on changing pedal state. This replaces the previous one-shot coasting rules described below; all gear-2-through-7 timings and approved source ranges are unchanged.
 
 The approved user markers in `approved-markers.json` are loaded for the matching-length source. Lab and game now both import `src/marked-audio.mjs`. Automatic shift durations are unchanged; both sides use the exact source offsets and fifth-gear extension factors. The new requested behavior is conditional one-shot coasting: ordinary throttle release is silent unless a downward gear change has occurred; braking through gear 1 plays the coast clip once and then remains silent. This supersedes the earlier infinite-coast behavior below. Web Audio schedules gear boundaries in advance; game frame rate and vehicle speed do not alter their timing.
 

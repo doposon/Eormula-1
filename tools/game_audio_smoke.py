@@ -21,7 +21,7 @@ try:
   try:page.wait_for_function('audioTest().phase==="acceleration" && audioTest().gear===2',timeout=15000)
   except Exception:
    print(page.evaluate('audioTest()'),errors,flush=True);raise
-  assert page.evaluate('audioTest().hud')==2;page.keyboard.up('w');page.wait_for_function('audioTest().phase==="silent"')
+  assert page.evaluate('audioTest().hud')==2;page.keyboard.up('w');page.wait_for_function('audioTest().phase==="coast"')
   page.keyboard.press('Escape')
   try:page.wait_for_function('audioTest().paused && !audioTest().active && audioTest().nodes===0',timeout=15000)
   except Exception:
