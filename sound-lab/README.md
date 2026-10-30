@@ -1,0 +1,9 @@
+# Sound lab prototype
+
+Independent static Web Audio test page. Open `/sound-lab/` on the published site and select a local video/audio file. Audio is decoded in the user's browser; the video is not uploaded. The original supplied MP4 exceeded the workspace's 32 MiB transfer limit, so its contents have not been analysed or auditioned by the developer. No source clip or finished engine sound bank is shipped.
+
+Automatic candidates use approximate zero-crossing bands and short-window amplitude stability, not engine RPM recognition. Users can audition the source, set low/mid/high/coast loops, and export/reimport time markers tied to the source filename and duration. Loop edges are crossfaded. Four persistent looping AudioBufferSources blend and change pitch according to a virtual eight-speed drivetrain, with shift cuts, downshift blips, volume and cockpit filtering. This is a tuning prototype, not a faithful reconstruction of the original engine or a physical gearbox. It deliberately does not alter the game.
+
+Browser decoding support depends on the input codec; MP4 with AAC should work in supported Chrome/Edge builds. If decoding fails, the original media player remains available and the UI requests a supported audio export. Backgrounding stops engine playback. Keyboard: W/up throttle, S/down brake, Q/E shift, Space stop. Pointer release/cancel and window blur clear held pedals.
+
+Validation: `node tools/sound_lab.test.mjs` covers acceleration, automatic upshifts, coasting, braking/downshifts, overrev prevention and silent-input rejection. `python3 tools/sound_lab_smoke.py` creates a synthetic MP4/AAC fixture with ffmpeg and verifies browser decoding, four source layers, nonzero audio output, stopped silence, keyboard control, high-gear mode, clip editing, original playback and marker round-trip. These checks do not evaluate the user's actual F1 recording or establish its subjective realism.
