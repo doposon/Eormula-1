@@ -26,8 +26,10 @@ def export(destination):
     if game.count(statement)!=1:
         raise ValueError('Update exporter for the changed camera import')
     game = game.replace(statement,'').replace('export default function startGame', 'function startGame')
+    game = game.replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs';", '')
+    marked_audio = (ROOT/'src/marked-audio.mjs').read_text().replace('export ', '')
     game = re.sub(r'__embeddedAssets\["(asset-\d+)"\]', lambda m:assets[m[1]], game)
-    script = "(()=>{\n'use strict';\n"+camera+'\n'+game+'\nstartGame();\n})();'
+    script = "(()=>{\n'use strict';\n"+camera+'\n'+marked_audio+'\n'+game+'\nstartGame();\n})();'
     if re.search(r'</script', script, re.I):
         raise ValueError('Inline script contains an HTML closing tag')
     html = (ROOT/'index.html').read_text().replace('id="downloadOffline"', 'id="downloadOffline" hidden')

@@ -1,4 +1,6 @@
-# Three waveform banks and live acceptance lab (Lab 07)
+# Three waveform banks and live acceptance lab (Lab 07.1)
+
+The approved user markers in `approved-markers.json` are loaded for the matching-length source. Lab and game now both import `src/marked-audio.mjs`. Automatic shift durations are unchanged; both sides use the exact source offsets and fifth-gear extension factors. The new requested behavior is conditional one-shot coasting: ordinary throttle release is silent unless a downward gear change has occurred; braking through gear 1 plays the coast clip once and then remains silent. This supersedes the earlier infinite-coast behavior below. Web Audio schedules gear boundaries in advance; game frame rate and vehicle speed do not alter their timing.
 
 The main page now loads `v7/`: three permanently visible, independent editors (acceleration, braking/downshifts and coasting), followed by a live WASD/QE acceptance console. Each geared editor accepts 5/6/7 recorded gears with separately draggable boundaries. Missing high gears extend the fifth-gear sample by looping only its last 0.2 seconds, retaining the original pitch. The braking editor runs in descending gear order.
 
