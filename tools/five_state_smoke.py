@@ -11,7 +11,7 @@ source=(ROOT/'sound-lab/v5/lab.js').read_text().replace('let last=performance.no
 errors=[]
 try:
  with sync_playwright() as p:
-  b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--autoplay-policy=no-user-gesture-required']);page=b.new_page();page.on('pageerror',lambda e:errors.append(str(e)));page.route('**/v5/lab.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'));page.goto(f'http://127.0.0.1:{server.server_port}/sound-lab/')
+  b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--autoplay-policy=no-user-gesture-required']);page=b.new_page();page.on('pageerror',lambda e:errors.append(str(e)));page.route('**/v5/lab.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'));page.goto(f'http://127.0.0.1:{server.server_port}/sound-lab/v5/')
   assert not page.locator('#auto').is_checked();page.locator('#file').set_input_files(str(fixture));page.wait_for_function('!document.querySelector("#apply").disabled')
   for k in ['upshift','accelerate','downshift','decelerate','coast']:
    page.locator(f'#{k}-enabled').check();page.locator(f'#{k}-length').fill('.4')

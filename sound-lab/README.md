@@ -1,3 +1,15 @@
+# Waveform gear marker lab (Lab 06)
+
+The main `/sound-lab/` page now loads the waveform editor in `v6/`. Pick a local video/audio recording of any length. The complete decoded waveform uses per-bin minima/maxima across all channels, representing amplitude rather than pitch. Zoom and horizontal scrolling allow fine alignment.
+
+Acceleration and braking have independent banks of eight increasing time boundaries, defining seven intervals. Acceleration maps these to gears 1 through 7; braking maps them to 7 through 1. Drag a range to create evenly spaced placeholder boundaries, then calibrate the six internal shift markers by dragging, clicking or editing seconds. Marker order is bounded with a 20 ms minimum gap. Editing invalidates that bank’s applied snapshot.
+
+Apply copies the current bank for a full-range audition. Per-gear previews and applied playback use the exact decoded source offset and duration through Web Audio at playbackRate 1; the recorded pitch and gear transitions are preserved. This editor does not yet synthesize arbitrary driving or change the game. Five-state and prior four-layer prototypes remain available in their version folders.
+
+Version-4 JSON exports include source filename, duration and nullable acceleration/braking arrays of eight times. Imports validate source identity, bounds and strict ordering. Markers do not include the recording. `python3 tools/waveform_smoke.py` checks waveform decoding, drag selection, exact time edits, marker bounds, zoom/scroll sizing, both gear orders, finite playback and marker round-trip with synthetic audio. Actual shift points are marked by the user.
+
+---
+
 # Five-state sound lab (Lab 05)
 
 The main `/sound-lab/` page now opens the five-state editor in `v5/`. Prior four-layer prototypes remain in `v3/` and `v4/`. This iteration changes the independent lab only.
