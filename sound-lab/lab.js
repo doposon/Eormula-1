@@ -7,7 +7,7 @@ function audioContext(){if(!ctx){ctx=new AudioContext();engine=new Engine(ctx);}
 function pedalsOff(){drive.throttle=drive.brake=0;$('throttle').classList.remove('active');$('brake').classList.remove('active');}
 function stop(){playing=false;pedalsOff();if(engine)engine.update(drive,0,$('perspective').value,false);}
 function ready(value){for(const id of ['start','stop','throttle','brake','coast','down','up','high','reset','atPlayhead','preview','apply','export','import'])$(id).disabled=!value;}
-function showClips(){const list=$('clips');list.replaceChildren();for(const [key,c] of Object.entries(clips)){const row=document.createElement('div');row.textContent=`${names[key]} · ${c.start.toFixed(2)}–${(c.start+c.length).toFixed(2)} 秒 · 参考转速 ${c.rpm}`;list.append(row);}selectClip();}
+function showClips(){const list=$('clips');list.replaceChildren();for(const [key,c] of Object.entries(clips)){const row=document.createElement('div'),selected=engine?.nodes.find(n=>n.name===key)?.selected;row.textContent=`${names[key]} · 标记 ${c.start.toFixed(2)}–${(c.start+c.length).toFixed(2)} 秒 · 实际循环 ${selected?`${selected.start.toFixed(2)}–${(selected.start+selected.length).toFixed(2)} 秒`:'载入视频后显示'} · 参考转速 ${c.rpm}`;list.append(row);}selectClip();}
 function selectClip(){if(!clips)return;const c=clips[$('layer').value];$('clipStart').value=c.start.toFixed(2);$('clipLength').value=c.length;}
 function clipValues(){const start=Number($('clipStart').value),length=Number($('clipLength').value);if(!Number.isFinite(start)||!Number.isFinite(length)||start<0||length<.15||length>3||start+length>buffer.duration)throw Error('请选取音频范围内的片段，长度为 0.15–3 秒');return {start,length};}
 function message(error){$('status').textContent=error.message||String(error);}

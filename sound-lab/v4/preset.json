@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "source": "屏幕录制 2026-10-30 091321.mp4",
+  "duration": 75.392,
+  "clips": {
+    "low": { "start": 0, "length": 3, "rpm": 4500 },
+    "mid": { "start": 3, "length": 3, "rpm": 8000 },
+    "high": { "start": 16, "length": 3, "rpm": 11000 },
+    "coast": { "start": 23, "length": 1, "rpm": 7500 }
+  }
+}
