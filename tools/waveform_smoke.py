@@ -12,7 +12,7 @@ errors=[]
 try:
  with sync_playwright() as p:
   b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--autoplay-policy=no-user-gesture-required']);page=b.new_page(viewport={'width':1440,'height':1000});page.on('pageerror',lambda e:errors.append(str(e)));page.route('**/v6/lab.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
-  page.goto(f'http://127.0.0.1:{server.server_port}/sound-lab/');page.locator('#file').set_input_files(str(fixture));page.wait_for_function('!document.querySelector("#range").disabled');assert page.evaluate('waveTest().peaks')>1000
+  page.goto(f'http://127.0.0.1:{server.server_port}/sound-lab/v6/');page.locator('#file').set_input_files(str(fixture));page.wait_for_function('!document.querySelector("#range").disabled');assert page.evaluate('waveTest().peaks')>1000
   page.locator('#gearCount').select_option('7');page.locator('#range').click();box=page.locator('#wave').bounding_box();x=box['x'];y=box['y']+100;w=box['width'];page.mouse.move(x+w*.05,y);page.mouse.down();page.mouse.move(x+w*.95,y,steps=12);page.mouse.up();assert page.locator('#segments div').count()==7
   page.locator('#markers button').nth(1).click();page.locator('#markerTime').fill('1.5');page.locator('#markerTime').dispatch_event('change');assert page.evaluate('waveTest().banks.acceleration[1]')==1.5
   page.locator('#apply').click();assert page.locator('#run').is_enabled();page.locator('#run').click();page.wait_for_function('waveTest().audition!==null');page.locator('#stop').click();assert page.evaluate('waveTest().audition') is None

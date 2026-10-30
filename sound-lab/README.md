@@ -1,4 +1,12 @@
-# Waveform gear marker lab (Lab 06.1)
+# Three waveform banks and live acceptance lab (Lab 07)
+
+The main page now loads `v7/`: three permanently visible, independent editors (acceleration, braking/downshifts and coasting), followed by a live WASD/QE acceptance console. Each geared editor accepts 5/6/7 recorded gears with separately draggable boundaries. Missing high gears extend the fifth-gear sample by looping only its last 0.2 seconds, retaining the original pitch. The braking editor runs in descending gear order.
+
+After Apply All, W plays acceleration in the current gear, S plays the independent braking range and releasing both loops the entire selected coast range indefinitely with a seam crossfade. A/D show steering, Q/E shift manually. Automatic gear changes wait for the full marked segment (including extension duration); disabling automatic changes holds the current gear and loops its final tail. Speed and RPM are sound-test references. This is a standalone acceptance lab, not updated game physics or in-game integration.
+
+Version-6 exports contain three banks `{key,count,nodes}`, source identity and extension factors. Version 4/5 waveform markers can be imported; separate one-shot shift markers from the previous UI are not used in this range-based workflow. Files do not contain audio. Validation: `python3 tools/driving_audio_lab_smoke.py` tests independent waveforms, coast beyond source duration, W/S switching, automatic and manual shifts and marker round-trip using synthetic audio.
+
+## Legacy Lab 06.1
 
 Update: there are five independent banks: per-gear acceleration, per-gear braking, a single upshift event, a single downshift event and no-throttle coasting. The last three each use one start/end range. Each geared bank supports recordings ending in gear 5, 6 or 7 (default 5). Changing the recorded gear count redistributes the current range and requires recalibration. Missing gears use the gear-5 range repeated at playbackRate 1 for 1.25× (gear 6) or 1.5× (gear 7) duration. Per-gear previews audition these extensions; whole-range playback stays faithful to the original recording.
 
