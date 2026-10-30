@@ -1,3 +1,9 @@
+## Spa runoff and Singapore ground contact
+
+- Spa surface classification now uses the actual asphalt and kerb triangles. Green grass and sand runoff outside those meshes use low grip and strong speed-dependent drag, with slow throttle recovery. Other tracks retain their drag tuning.
+- Singapore asphalt, lane markings and bridge deck now provide triangle-based contact across their complete elevation range. Removed the kerb-only 47.54 ± 0.8m height gate.
+- Singapore chassis height follows the current road immediately, fits pitch/roll to its slope and samples four tyres for clearance, excluding height jumps onto overlapping bridge layers. RB22 origin clearance and projected shadows follow this contact.
+
 ## RB22 separated wheels
 
 - Replaced the RB22 asset with the supplied 22.6 MB GLB, preserving its 41 material parts and embedded textures.

@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=rb22wheels1';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=surface2';
 
 export default function startGame(__embeddedAssets) {
 
@@ -450,7 +450,7 @@ function renderCasterShadow(team,x,z,heading,spin,steer,rideHeight){
  if(team==='mclaren'){asset=userCarAsset;offset=.577;}
  else if(team==='redbull'){asset=npcCarAsset;offset=.075;}
  else{asset=team==='ferrari'?ferrariCarAsset:team==='mercedes'?mercedesCarAsset:additionalTeamAssets[team];carHeading+=Math.PI;}
- const gy=(selectedTrack==='shanghai'&&Number.isFinite(rideHeight))?rideHeight:trackGroundY(x,z);
+ const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack)&&Number.isFinite(rideHeight))?rideHeight:trackGroundY(x,z);
  gl.uniform3f(castLoc.car,x,gy+offset,z);gl.uniform1f(castLoc.heading,carHeading);gl.uniform1f(castLoc.ground,gy);
  gl.uniformMatrix4fv(castLoc.part,false,IDENTITY);gl.uniform1f(castLoc.wheel,0);gl.uniform1f(castLoc.spin,spin);gl.uniform1f(castLoc.steer,steer);
  if(asset&&(asset.batch||asset.batches)){
@@ -601,7 +601,7 @@ function addVenueContact(key,kind,positions,indices,scale=1,rotate=false){
   const ux=b[0]-a[0],uz=b[1]-a[1],uy=b[2]-a[2],vx=c[0]-a[0],vz=c[1]-a[1],vy=c[2]-a[2];
   const normal=Math.hypot(uz*vy-uy*vz,uy*vx-ux*vy,det);
   if(Math.abs(det)<1e-6||Math.abs(det)/normal<.65)continue; // exclude vertical kerb ends/walls
-  if(key==='singapore'&&Math.abs((a[2]+b[2]+c[2])/3-47.54)>.8)continue;
+  // Use the whole authored road, including ramps and bridge decks.
   const minX=Math.floor(Math.min(a[0],b[0],c[0])/field.step),maxX=Math.floor(Math.max(a[0],b[0],c[0])/field.step);
   const minZ=Math.floor(Math.min(a[1],b[1],c[1])/field.step),maxZ=Math.floor(Math.max(a[1],b[1],c[1])/field.step);
   const tri={a,b,c,det};field.triangles.push(tri);
@@ -617,7 +617,7 @@ function venueContactAt(key,kind,x,z,reference=0,details=false){
   const v=((c[1]-a[1])*(x-c[0])+(a[0]-c[0])*(z-c[1]))/det,w=1-u-v;
   if(u< -1e-5||v< -1e-5||w< -1e-5)continue;
   const y=u*a[2]+v*b[2]+w*c[2];
-  if(best===null||Math.abs(y-reference)<Math.abs(best-reference)){best=y;bestTriangle=t;}
+  if(best===null||(key==='singapore'?y>best:Math.abs(y-reference)<Math.abs(best-reference))){best=y;bestTriangle=t;}
  }
  if(details&&bestTriangle){const {a,b,c,det}=bestTriangle;
   return {height:best,gradX:((a[2]-c[2])*(b[1]-c[1])-(b[2]-c[2])*(a[1]-c[1]))/det,
@@ -639,6 +639,23 @@ function spaPreciseHeightAt(x,z){
  // Far outside paved asphalt, blend with historical terrain rather than extending a cliff's height.
  const fade=Math.max(0,Math.min(1,(gap-13)/9));
  return height*(1-fade)+(-spaField(x,z,false))*fade;
+}
+// Singapore's visible asphalt varies in height; a fixed 47.54 plane cannot support it.
+function singaporeGroundPose(x,z,heading){
+ const contact=venueContactAt('singapore','road',x,z,47.54,true)||venueContactAt('singapore','kerb',x,z,47.54,true);
+ if(!contact)return {y:47.54,pitch:0,roll:0};
+ const angles=roadSlopeAngles(contact.gradX,contact.gradZ,heading);
+ // Lift the fitted chassis plane only enough to keep each tyre above the mesh.
+ const c=Math.cos(heading),s=Math.sin(heading);let y=contact.height;
+ for(const [forward,side] of [[1.3,-.67],[1.3,.67],[-1.7,-.67],[-1.7,.67]]){
+  const dx=c*forward-s*side,dz=s*forward+c*side;
+  const h=venueContactAt('singapore','road',x+dx,z+dz,contact.height);
+  const support=h===null?null:h-contact.gradX*dx-contact.gradZ*dz;
+  // Overlapping road layers beside bridges are not a bump under this tyre.
+  // Keep small road seams supported without lifting the whole car metres upward.
+  if(support!==null&&support-contact.height<.15)y=Math.max(y,support);
+ }
+ return {y:y+.005,...angles};
 }
 // Continuous local terrain plane, not a changing maximum of five wheel samples.
 // 4x4 Catmull-Rom reconstruction makes slope continuous between the authored 1.5m cells.
@@ -877,6 +894,9 @@ async function loadImportedCircuit(key){
    const normal=a.NORMAL===undefined?null:silverstoneAccessor(doc,bin,a.NORMAL,false);
    const inds=prim.indices===undefined?null:silverstoneAccessor(doc,bin,prim.indices,true);
    if(key==='spa'&&[45,58,59,60,65,81].includes(prim.material))addVenueContact(key,'road',p.array,inds?.array,1,true);
+   if(key==='spa'&&/grass|sand/i.test(sourceMaterial.name||''))addVenueContact(key,'grass',p.array,inds?.array,1,true);
+   if(key==='spa'&&[3,66].includes(prim.material))addVenueContact(key,'kerb',p.array,inds?.array,1,true);
+   if(key==='singapore'&&[29,182,183,184].includes(prim.material))addVenueContact(key,'road',p.array,inds?.array,2.1,true);
    if(key==='singapore'&&[185,186].includes(prim.material))addVenueContact(key,'kerb',p.array,inds?.array,2.1,true);
    if(inds&&inds.componentType===5125&&!ext)throw new Error(key+' requires OES_element_index_uint');
    const mat=doc.materials[prim.material]||{},pbr=mat.pbrMetallicRoughness||{},ti=pbr.baseColorTexture;
@@ -949,7 +969,7 @@ function markedTrackPose(track,index){
  const retreat=index===0?1.0:0; // Singapore: move driver 2m forward from v2.16.6; NPC grid remains authored.
  return {x:p[0]-Math.cos(heading)*retreat,z:p[2]-Math.sin(heading)*retreat,heading};
 }
-function semanticTrackHeight(x,z){return selectedTrack==='spa'?spaPreciseHeightAt(x,z):(selectedTrack==='singapore'?47.54:0);}
+function semanticTrackHeight(x,z){return selectedTrack==='spa'?spaPreciseHeightAt(x,z):(selectedTrack==='singapore'?singaporeGroundPose(x,z,0).y:0);}
 
 // Silverstone 2024: draw directly from the uploaded GLB, with its original indices,
 // UVs, textures and materials. No mesh decimation or vertex-colour baking.
@@ -1410,6 +1430,11 @@ function updateRoadFeedback(dt){
  playerVisualSuspension.heave=playerKerbSusp.heave+playerRoadFeedback.heave;
  playerVisualSuspension.pitch=playerKerbSusp.pitch+playerRoadFeedback.pitch;
  playerVisualSuspension.roll=playerKerbSusp.roll+playerRoadFeedback.roll;
+ if(selectedTrack==='singapore'){
+  const road=singaporeGroundPose(carX,carZ,carHeading);
+  playerVisualSuspension.heave=Math.max(0,playerVisualSuspension.heave);
+  playerVisualSuspension.pitch+=road.pitch;playerVisualSuspension.roll+=road.roll;
+ }
  playerVisualSuspension.active=playerKerbSusp.active;
 }
 function updateRideHeights(dt){
@@ -1424,6 +1449,9 @@ function updateRideHeights(dt){
   if(npcGhostActive){const other=spaGroundPose(npcX,npcZ,npcHeading);
    const npcSmooth=filterSpaRide(npcSpaRideFilter,other,npcX,npcZ,dt);
    npcRideY=npcSmooth.y;npcKerbSusp.pitch=npcSmooth.pitch;npcKerbSusp.roll=npcSmooth.roll;npcKerbSusp.heave=0;}
+ }else if(selectedTrack==='singapore'){
+  playerRideY=singaporeGroundPose(carX,carZ,carHeading).y;
+  npcRideY=singaporeGroundPose(npcX,npcZ,npcHeading).y;
  }else{
   const playerTarget=rideTargetY(carX,carZ),npcTarget=rideTargetY(npcX,npcZ);
   const blend=1-Math.exp(-Math.max(0,dt)*21);
@@ -1441,7 +1469,7 @@ function updateRideHeights(dt){
  // Small spring-damped road feel on the oval, Shanghai, Silverstone, Spa and Singapore.
  updateRoadFeedback(dt);
 }
-function modelGroundY(team,y){return y-(selectedTrack==='spa'&&team==='redbull'?.075:0);}
+function modelGroundY(team,y){return y-(['spa','singapore'].includes(selectedTrack)&&team==='redbull'?.075:0);}
 function playerBodyFrame(){
  const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack))?playerRideY+playerVisualSuspension.heave:trackGroundY(carX,carZ);
  return carBodyFrame(selectedPlayerTeam,carX,modelGroundY(selectedPlayerTeam,gy),carZ,carHeading,playerVisualSuspension);
@@ -1928,8 +1956,10 @@ function trackDistance(x,z){
 }
 function getSurfaceAt(x,z){
   if(selectedTrack==='spa'){
-   const d=spaField(x,z,true);
-   return d<12?'ROAD':d<17?'KERB':'GRASS';
+   if(venueContactAt('spa','road',x,z)!==null)return 'ROAD';
+   if(venueContactAt('spa','kerb',x,z)!==null)return 'KERB';
+   if(venueContacts.spa?.road)return 'GRASS';
+   const d=spaField(x,z,true);return d<12?'ROAD':d<17?'KERB':'GRASS';
   }
   if(selectedTrack==='singapore')return 'ROAD'; // preview: no reliable surface mesh classification yet
  if(selectedTrack==='silverstone'){
@@ -1998,7 +2028,7 @@ function update(dt){
    // Grass slip/recovery: coasting loses speed heavily; with throttle, drag still sheds racing speed,
    // but becomes small near zero so 4% engine power can slowly get the car moving again.
    const grassSpeed=Math.abs(carSpeed);
-   const grassDragPerSecond=forward?(0.18+0.22*grassSpeed):(2.0+0.26*grassSpeed);
+   const grassDragPerSecond=selectedTrack==='spa'?(forward?(0.18+.22*grassSpeed+1.4*Math.max(0,grassSpeed-2)):(2.0+1.8*grassSpeed)):(forward?(0.18+.22*grassSpeed):(2.0+.26*grassSpeed));
    carSpeed=moveToward(carSpeed,0,grassDragPerSecond*dt);
  }
  const displayedBeforeTurn=carSpeed<0?Math.abs(carSpeed)*3.6:(Math.abs(carSpeed)/MAX_WORLD_SPEED)*MAX_DASH_SPEED;
