@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const s=readFileSync('src/game.js','utf8');
 const code=s.slice(s.indexOf('// TYRE_WEAR_BEGIN'),s.indexOf('// TYRE_WEAR_END'));
-const ctx=vm.createContext({carX:0,carZ:0,carHeading:0,getSurfaceAt:()=> 'ROAD'});
+const ctx=vm.createContext({WEATHER:{sunny:{grip:1}},weatherKey:'sunny',carX:0,carZ:0,carHeading:0,getSurfaceAt:()=> 'ROAD'});
 vm.runInContext(code+';globalThis.t={health:tyreHealth,wear:wearTyres,grip:tyreGripAt,compound(v){tyreCompound=v},enable(v){tyreWearEnabled=v}}',ctx);
 const t=ctx.t;
 t.wear(10,0,1,true);assert.ok(t.health.every(x=>x===100));

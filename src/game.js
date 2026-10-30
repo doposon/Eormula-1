@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=replay9';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=weather10';
 
 export default function startGame(__embeddedAssets) {
 
@@ -24,9 +24,17 @@ const L=40,R=27,SW=80,ROAD=12,ARC=Math.PI*R,TOTAL=2*SW+2*ARC,rad=Math.PI/180;
 // Arcade speed scale: preserve the existing vehicle/track motion while allowing a 0–340 km/h speedometer.
 const MAX_WORLD_SPEED=23,MAX_DASH_SPEED=340;
 const vs=`attribute vec3 aPos; attribute vec3 aColor; uniform mat4 uMvp; uniform mat4 uModel; varying vec3 vColor; varying float vLight; void main(){vec4 world=uModel*vec4(aPos,1.0);gl_Position=uMvp*world;vColor=aColor;vLight=0.91+0.09*clamp((world.x*0.004+world.z*0.003+0.5),0.0,1.0);}`;
-const fs=`precision mediump float; varying vec3 vColor; varying float vLight; uniform float uOpacity; void main(){gl_FragColor=vec4(vColor*vLight,uOpacity);}`;
+const fs=`precision mediump float; varying vec3 vColor; varying float vLight; uniform float uOpacity; void main(){gl_FragColor=vec4(wetRoad(vColor*vLight,1.0),uOpacity);}`;
 function shader(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
-const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vs));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(prog));gl.useProgram(prog);
+// WebGL 1 cannot mipmap NPOT model images. Keep their original pixels and use legal sampling.
+function configureCarTexture(bitmap){
+ const pot=n=>n>0&&(n&(n-1))===0,mipmap=pot(bitmap.width)&&pot(bitmap.height);
+ if(mipmap)gl.generateMipmap(gl.TEXTURE_2D);
+ gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,mipmap?gl.LINEAR_MIPMAP_LINEAR:gl.LINEAR);
+ gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+ for(const axis of [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T])gl.texParameteri(gl.TEXTURE_2D,axis,mipmap?gl.REPEAT:gl.CLAMP_TO_EDGE);
+}
+const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vs));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,weatherFragment(fs)));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(prog));gl.useProgram(prog);
 const locPos=gl.getAttribLocation(prog,'aPos'),locCol=gl.getAttribLocation(prog,'aColor'),locMvp=gl.getUniformLocation(prog,'uMvp'),locModel=gl.getUniformLocation(prog,'uModel'),locOpacity=gl.getUniformLocation(prog,'uOpacity');gl.uniform1f(locOpacity,1);
 
 const carVs=`attribute vec3 aCarPos; attribute vec3 aCarNormal; attribute vec2 aCarUV;
@@ -69,7 +77,7 @@ void main(){
  vCarUV=uv; gl_Position=uCarVP*vec4(world,1.0);
 }`;
 const carFs=`precision mediump float; varying vec2 vCarUV; varying float vCarLight; varying float vCarSpec; uniform sampler2D uCarTexture; uniform float uCarAlphaMode; uniform float uCarAlphaCutoff; uniform vec4 uCarBaseColor; void main(){ vec4 t=texture2D(uCarTexture,vCarUV)*uCarBaseColor; if(uCarAlphaMode>0.5 && uCarAlphaMode<1.5 && t.a<uCarAlphaCutoff) discard; vec3 rgb=min(t.rgb*vCarLight+vec3(vCarSpec),vec3(1.0)); gl_FragColor=vec4(rgb,t.a); }`;
-const carProg=gl.createProgram();gl.attachShader(carProg,shader(gl.VERTEX_SHADER,carVs));gl.attachShader(carProg,shader(gl.FRAGMENT_SHADER,carFs));gl.linkProgram(carProg);if(!gl.getProgramParameter(carProg,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(carProg));
+const carProg=gl.createProgram();gl.attachShader(carProg,shader(gl.VERTEX_SHADER,carVs));gl.attachShader(carProg,shader(gl.FRAGMENT_SHADER,weatherFragment(carFs)));gl.linkProgram(carProg);if(!gl.getProgramParameter(carProg,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(carProg));
 const carLoc={pos:gl.getAttribLocation(carProg,'aCarPos'),normal:gl.getAttribLocation(carProg,'aCarNormal'),uv:gl.getAttribLocation(carProg,'aCarUV'),vp:gl.getUniformLocation(carProg,'uCarVP'),position:gl.getUniformLocation(carProg,'uCarPosition'),heading:gl.getUniformLocation(carProg,'uCarHeading'),camera:gl.getUniformLocation(carProg,'uCarCameraPosition'),gloss:gl.getUniformLocation(carProg,'uCarGloss'),sun:gl.getUniformLocation(carProg,'uCarSunDir'),alphaMode:gl.getUniformLocation(carProg,'uCarAlphaMode'),alphaCutoff:gl.getUniformLocation(carProg,'uCarAlphaCutoff'),baseColor:gl.getUniformLocation(carProg,'uCarBaseColor'),group:gl.getUniformLocation(carProg,'uWheelGroup'),center:gl.getUniformLocation(carProg,'uWheelCenter'),axis:gl.getUniformLocation(carProg,'uWheelAxis'),spin:gl.getUniformLocation(carProg,'uWheelSpin'),steer:gl.getUniformLocation(carProg,'uFrontWheelSteer'),front:gl.getUniformLocation(carProg,'uIsFront'),bodyRoll:gl.getUniformLocation(carProg,'uBodyRoll'),bodyPitch:gl.getUniformLocation(carProg,'uBodyPitch'),wheelLift:gl.getUniformLocation(carProg,'uWheelLift'),uvFlipMode:gl.getUniformLocation(carProg,'uCarUVFlipMode'),texture:gl.getUniformLocation(carProg,'uCarTexture')};
 const uintIndicesExt=gl.getExtension('OES_element_index_uint');
 const cachedStencilBits=gl.getParameter(gl.STENCIL_BITS); // cache expensive WebGL state query instead of every frame
@@ -124,11 +132,70 @@ function selectSunPreset(index){
 selectSunPreset(1);
 document.getElementById('sunAngleButton').addEventListener('click',()=>selectSunPreset(sunPresetIndex+1));
 
+// Five weather presets: fixed GPU rain budget, no per-drop objects or physics raycasts.
+const WEATHER={sunny:{label:'Sunny',rain:0,cloud:0,grip:1},cloudy:{label:'Cloudy',rain:0,cloud:1,grip:1},light:{label:'Light Rain',rain:.25,cloud:1,grip:.82},medium:{label:'Medium Rain',rain:.6,cloud:1,grip:.64},heavy:{label:'Heavy Rain',rain:1,cloud:1,grip:.46}};
+let weatherKey='sunny';
+try{if(WEATHER[localStorage.getItem('formulaWeather')])weatherKey=localStorage.getItem('formulaWeather');}catch{}
+const weatherPrograms=[];
+function setWeather(key){
+ if(!WEATHER[key])return;weatherKey=key;
+ try{localStorage.setItem('formulaWeather',key);}catch{}
+ document.querySelectorAll('.weather-select').forEach(el=>el.value=key);
+ const w=WEATHER[key];
+ for(const [program,loc] of weatherPrograms){gl.useProgram(program);gl.uniform2f(loc,w.cloud,w.rain);}
+ gl.useProgram(prog);
+ document.getElementById('weatherStatus').textContent=w.label.toUpperCase()+' · ROAD GRIP '+Math.round(w.grip*100)+'%';
+}
+for(const [parent,id] of [[document.querySelector('#teamScreen .session-options'),'practiceWeather'],[document.getElementById('settingsPanel'),'settingsWeather']]){
+ const label=document.createElement('label');label.className='weather-control';label.textContent='Weather ';
+ const select=document.createElement('select');select.id=id;select.className='weather-select';
+ for(const [key,w] of Object.entries(WEATHER)){const opt=document.createElement('option');opt.value=key;opt.textContent=w.label;select.append(opt);}
+ select.onchange=()=>setWeather(select.value);label.append(select);parent.append(label);
+}
+const weatherStatus=document.createElement('span');weatherStatus.id='weatherStatus';document.getElementById('telemetry').append(weatherStatus);
+function registerWeather(program){weatherPrograms.push([program,gl.getUniformLocation(program,'uWeather')]);}
+// Atmospheric tint and distance haze shared by world geometry. Alpha remains untouched.
+function weatherFragment(source){
+ const helpers=`uniform vec2 uWeather;
+ vec3 wetRoad(vec3 c,float up){if(uWeather.y<.001)return c;
+ float gray=1.0-smoothstep(.04,.15,max(c.r,max(c.g,c.b))-min(c.r,min(c.g,c.b)));
+ float road=gray*smoothstep(.75,.98,up)*(1.0-smoothstep(.55,.78,max(c.r,max(c.g,c.b))));
+ return mix(c,c*.65+vec3(.025,.04,.055),road*uWeather.y);
+ }
+ `;
+ return source.replace('void main()',helpers+`void weatherMain()`).replace(/}\s*$/,`}
+ void main(){weatherMain();if(uWeather.x<.001)return;float r=uWeather.y;
+ float fog=(1.0-exp(-max(0.0,1.0/gl_FragCoord.w-25.0)*r*.0025));
+ gl_FragColor.rgb=mix(gl_FragColor.rgb*(1.0-uWeather.x*.13-r*.16),vec3(.56,.62,.67),min(.83,fog));}`);
+}
+// Two vertices per streak, one static buffer; motion is calculated entirely on GPU.
+const rainVs=`attribute vec4 aDrop;uniform mat4 uRainVP;uniform vec3 uRainEye;uniform float uRainTime;uniform mediump float uRainAmount;
+void main(){float y=mod(aDrop.y-uRainTime*(14.0+uRainAmount*12.0),32.0)-8.0;
+ vec3 p=uRainEye+vec3(aDrop.x,y,aDrop.z);p+=vec3(-.18,1.0,.08)*aDrop.w*(.45+uRainAmount*.65);
+ gl_Position=uRainVP*vec4(p,1.0);}`;
+const rainFs=`precision mediump float;uniform mediump float uRainAmount;void main(){gl_FragColor=vec4(.73,.84,.92,.25+uRainAmount*.22);}`;
+const rainProg=gl.createProgram();gl.attachShader(rainProg,shader(gl.VERTEX_SHADER,rainVs));gl.attachShader(rainProg,shader(gl.FRAGMENT_SHADER,rainFs));gl.linkProgram(rainProg);
+if(!gl.getProgramParameter(rainProg,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(rainProg));
+const rainLoc={drop:gl.getAttribLocation(rainProg,'aDrop'),vp:gl.getUniformLocation(rainProg,'uRainVP'),eye:gl.getUniformLocation(rainProg,'uRainEye'),time:gl.getUniformLocation(rainProg,'uRainTime'),amount:gl.getUniformLocation(rainProg,'uRainAmount')};
+const rainBuffer=gl.createBuffer(),rainData=new Float32Array(1600*8);
+for(let i=0;i<1600;i++){const x=Math.random()*70-35,y=Math.random()*32,z=Math.random()*70-35;rainData.set([x,y,z,0,x,y,z,1],i*8);}
+gl.bindBuffer(gl.ARRAY_BUFFER,rainBuffer);gl.bufferData(gl.ARRAY_BUFFER,rainData,gl.STATIC_DRAW);
+let rainClock=0;
+function renderWeather(vp,eye,dt){
+ const r=WEATHER[weatherKey].rain;if(!r)return;
+ if(!gamePaused&&!resumeCountdownActive)rainClock+=dt;
+ gl.useProgram(rainProg);gl.uniformMatrix4fv(rainLoc.vp,false,vp);gl.uniform3fv(rainLoc.eye,eye);gl.uniform1f(rainLoc.time,rainClock);gl.uniform1f(rainLoc.amount,r);
+ gl.bindBuffer(gl.ARRAY_BUFFER,rainBuffer);gl.enableVertexAttribArray(rainLoc.drop);gl.vertexAttribPointer(rainLoc.drop,4,gl.FLOAT,false,0,0);
+ gl.disable(gl.STENCIL_TEST);gl.enable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+ gl.drawArrays(gl.LINES,0,Math.round((180+1420*r)/2)*4);
+ gl.depthMask(true);gl.disable(gl.BLEND);gl.useProgram(prog);
+}
+
 // Atmospheric sky: world-locked clouds over a pale-blue gradient.
 // Screen quad is only the raster target; cloud pattern is sampled in world directions.
 const skyVs=`attribute vec2 aSkyCorner;varying vec2 vSkyUV;void main(){vSkyUV=aSkyCorner*.5+.5;gl_Position=vec4(aSkyCorner,0.9999,1.0);}`;
 const skyFs=`precision mediump float;varying vec2 vSkyUV;
-uniform float uSkyMode;uniform float uSkyAspect;uniform float uSkyTanHalfFov;
+uniform vec2 uWeather;uniform float uSkyMode;uniform float uSkyAspect;uniform float uSkyTanHalfFov;
 uniform vec3 uSkyForward;uniform vec3 uSkyRight;uniform vec3 uSkyUp;
 float hash2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
@@ -150,13 +217,13 @@ void main(){
  vec2 p=ray.xz*(3.6/(0.45+elevation))+vec2(2.3,-1.5);
  float wisps=noise2(p*1.25)+0.45*noise2(p*2.55+7.4)+0.16*noise2(p*5.2);
  float bands=0.5+0.5*sin(p.x*1.8+p.y*3.3+noise2(p*0.7)*1.9);
- float cloud=smoothstep(0.88,1.28,wisps+0.2*bands);
+ float cloud=smoothstep(0.88-uWeather.x*.48,1.28-uWeather.x*.42,wisps+0.2*bands);
  // Clouds now occupy upper sky only; keep the horizon clear of low-lying clouds.
  cloud*=smoothstep(0.30,0.49,elevation)*(1.0-smoothstep(0.985,1.0,elevation));
- col=mix(col,vec3(1.0,0.99,0.97),cloud*0.30);
+ col=mix(col,vec3(1.0,0.99,0.97),cloud*(.30+uWeather.x*.65));
  float haze=0.09*(1.0-smoothstep(0.06,0.30,elevation));
  col=mix(col,vec3(0.96,0.97,1.0),haze);
- gl_FragColor=vec4(col,1.0);
+ col=mix(col,mix(vec3(.57,.63,.69),vec3(.25,.31,.38),uWeather.y),uWeather.x*.65+uWeather.y*.25);gl_FragColor=vec4(col,1.0);
 }`;
 const skyProg=gl.createProgram();gl.attachShader(skyProg,shader(gl.VERTEX_SHADER,skyVs));gl.attachShader(skyProg,shader(gl.FRAGMENT_SHADER,skyFs));gl.linkProgram(skyProg);
 if(!gl.getProgramParameter(skyProg,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(skyProg));
@@ -338,14 +405,15 @@ const sunProg=gl.createProgram();gl.attachShader(sunProg,shader(gl.VERTEX_SHADER
 const sunLoc={point:gl.getAttribLocation(sunProg,'aSunPoint'),vp:gl.getUniformLocation(sunProg,'uSunVP'),pos:gl.getUniformLocation(sunProg,'uSunPosition'),size:gl.getUniformLocation(sunProg,'uSunSize'),halo:gl.getUniformLocation(sunProg,'uSunHalo')};
 const sunPointBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,sunPointBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,0]),gl.STATIC_DRAW);
 function renderSunDisc(vp,eye,screenHeight){
+ if(weatherKey!=='sunny')return;
  const distance=(selectedTrack==='oval'?200:1900);
  gl.useProgram(sunProg);gl.uniformMatrix4fv(sunLoc.vp,false,vp);
  gl.uniform3f(sunLoc.pos,eye[0]+sunDirection[0]*distance,eye[1]+sunDirection[1]*distance,eye[2]+sunDirection[2]*distance);
  gl.bindBuffer(gl.ARRAY_BUFFER,sunPointBuffer);gl.enableVertexAttribArray(sunLoc.point);gl.vertexAttribPointer(sunLoc.point,3,gl.FLOAT,false,0,0);
  gl.disable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
  const scale=Math.min(1.4,Math.max(.65,screenHeight/850));
- gl.uniform1f(sunLoc.halo,1);gl.uniform1f(sunLoc.size,170*scale);gl.drawArrays(gl.POINTS,0,1);
- gl.uniform1f(sunLoc.halo,0);gl.uniform1f(sunLoc.size,40*scale);gl.drawArrays(gl.POINTS,0,1);
+ gl.uniform1f(sunLoc.halo,1);gl.uniform1f(sunLoc.size,290*scale);gl.drawArrays(gl.POINTS,0,1);
+ gl.uniform1f(sunLoc.halo,0);gl.uniform1f(sunLoc.size,85*scale);gl.drawArrays(gl.POINTS,0,1);
  gl.depthMask(true);gl.disable(gl.BLEND);gl.enable(gl.DEPTH_TEST);gl.useProgram(prog);
 }
 
@@ -829,18 +897,18 @@ function venueWallHit(track,x0,z0,x1,z1){
 // sharing the original geometry/UV/materials without decimation or vertex-colour baking.
 const importedVs=`attribute vec3 aImportPos;attribute vec2 aImportUV;attribute vec3 aImportNormal;
 uniform mat4 uImportVP;uniform mat4 uImportObject;uniform vec3 uImportSun;
-varying vec2 vImportUV;varying float vImportLight;
+varying vec2 vImportUV;varying float vImportLight;varying float vImportUp;
 void main(){vec4 w=uImportObject*vec4(aImportPos,1.0);
  gl_Position=uImportVP*w;vImportUV=aImportUV;
  vec3 n=normalize(mat3(uImportObject)*aImportNormal);
- vImportLight=.68+.32*max(dot(n,normalize(uImportSun)),0.0);}`;
+ vImportUp=abs(n.y);vImportLight=.68+.32*max(dot(n,normalize(uImportSun)),0.0);}`;
 const importedFs=`precision mediump float;uniform sampler2D uImportTex;uniform vec4 uImportColor;
 uniform float uImportHasTex;uniform float uImportCutoff;uniform float uImportOpacity;uniform float uImportOpaque;
-varying vec2 vImportUV;varying float vImportLight;
+varying vec2 vImportUV;varying float vImportLight;varying float vImportUp;
 void main(){vec4 c=uImportColor*(uImportHasTex>.5?texture2D(uImportTex,vImportUV):vec4(1.0));
  if(uImportOpaque>.5)c.a=1.0;
- if(c.a<uImportCutoff)discard;gl_FragColor=vec4(min(c.rgb*vImportLight,vec3(1.)),c.a*uImportOpacity);}`;
-const importedProg=gl.createProgram();gl.attachShader(importedProg,shader(gl.VERTEX_SHADER,importedVs));gl.attachShader(importedProg,shader(gl.FRAGMENT_SHADER,importedFs));gl.linkProgram(importedProg);
+ if(c.a<uImportCutoff)discard;c.rgb=wetRoad(c.rgb,vImportUp);gl_FragColor=vec4(min(c.rgb*vImportLight,vec3(1.)),c.a*uImportOpacity);}`;
+const importedProg=gl.createProgram();gl.attachShader(importedProg,shader(gl.VERTEX_SHADER,importedVs));gl.attachShader(importedProg,shader(gl.FRAGMENT_SHADER,weatherFragment(importedFs)));gl.linkProgram(importedProg);
 if(!gl.getProgramParameter(importedProg,gl.LINK_STATUS))throw new Error('Imported circuit shader: '+gl.getProgramInfoLog(importedProg));
 const impLoc={p:gl.getAttribLocation(importedProg,'aImportPos'),n:gl.getAttribLocation(importedProg,'aImportNormal'),uv:gl.getAttribLocation(importedProg,'aImportUV'),vp:gl.getUniformLocation(importedProg,'uImportVP'),obj:gl.getUniformLocation(importedProg,'uImportObject'),sun:gl.getUniformLocation(importedProg,'uImportSun'),tex:gl.getUniformLocation(importedProg,'uImportTex'),color:gl.getUniformLocation(importedProg,'uImportColor'),has:gl.getUniformLocation(importedProg,'uImportHasTex'),cut:gl.getUniformLocation(importedProg,'uImportCutoff'),opacity:gl.getUniformLocation(importedProg,'uImportOpacity'),opaque:gl.getUniformLocation(importedProg,'uImportOpaque')};
 const IMP_SPA_MODEL=new Float32Array([1,0,0,0, 0,0,1,0, 0,-1,0,0, 0,0,0,1]); // exported Spa root: x,y,z -> x,-z,y
@@ -978,12 +1046,12 @@ function semanticTrackHeight(x,z){return selectedTrack==='spa'?spaPreciseHeightA
 // Silverstone 2024: draw directly from the uploaded GLB, with its original indices,
 // UVs, textures and materials. No mesh decimation or vertex-colour baking.
 const silverstoneVs=`attribute vec3 aP;attribute vec2 aUV;attribute vec3 aN;
-uniform mat4 uVP;uniform vec3 uSun;varying vec2 vUV;varying float vLit;
+uniform mat4 uVP;uniform vec3 uSun;varying vec2 vUV;varying float vLit;varying float vRoadUp;
 void main(){vec3 p=vec3(aP.x,-aP.z,aP.y);vec3 n=normalize(vec3(aN.x,-aN.z,aN.y));
- gl_Position=uVP*vec4(p,1.0);vUV=aUV;vLit=0.67+0.33*max(dot(n,normalize(uSun)),0.0);}`;
+ vRoadUp=abs(n.y);gl_Position=uVP*vec4(p,1.0);vUV=aUV;vLit=0.67+0.33*max(dot(n,normalize(uSun)),0.0);}`;
 // Surface-specific correction for the authored Silverstone textures. Mesh geometry, UVs,
 // texture bytes and building shading remain unchanged. Material classes are visual only.
-const silverstoneFs=`precision mediump float;varying vec2 vUV;varying float vLit;
+const silverstoneFs=`precision mediump float;varying vec2 vUV;varying float vLit;varying float vRoadUp;
 uniform sampler2D uTex;uniform vec4 uColor;uniform float uCutoff;uniform float uUseTex;uniform float uSurfaceClass;
 void main(){vec4 c=uColor*(uUseTex>0.5?texture2D(uTex,vUV):vec4(1.0));
  if(c.a<uCutoff)discard;
@@ -993,10 +1061,10 @@ void main(){vec4 c=uColor*(uUseTex>0.5?texture2D(uTex,vUV):vec4(1.0));
  else if(uSurfaceClass>1.5&&uSurfaceClass<2.5)rgb=min(vec3(1.0),pow(max(rgb,vec3(0.0)),vec3(0.88))*1.08);
  // Authored tyre-mark/grass overlays carry transparency although glTF marks them OPAQUE.
  // Asphalt colour is no longer destroyed by source PNG alpha; keep decals subtle.
- gl_FragColor=vec4(rgb,uSurfaceClass>2.5?c.a*0.30:1.0);}`;
+ if(uSurfaceClass>.5&&uSurfaceClass<1.5)rgb=wetRoad(rgb,vRoadUp);gl_FragColor=vec4(rgb,uSurfaceClass>2.5?c.a*0.30:1.0);}`;
 const silverstoneProg=gl.createProgram();
 gl.attachShader(silverstoneProg,shader(gl.VERTEX_SHADER,silverstoneVs));
-gl.attachShader(silverstoneProg,shader(gl.FRAGMENT_SHADER,silverstoneFs));
+gl.attachShader(silverstoneProg,shader(gl.FRAGMENT_SHADER,weatherFragment(silverstoneFs)));
 gl.linkProgram(silverstoneProg);
 if(!gl.getProgramParameter(silverstoneProg,gl.LINK_STATUS))throw new Error('Silverstone shader: '+gl.getProgramInfoLog(silverstoneProg));
 const silverstoneLoc={p:gl.getAttribLocation(silverstoneProg,'aP'),uv:gl.getAttribLocation(silverstoneProg,'aUV'),n:gl.getAttribLocation(silverstoneProg,'aN'),vp:gl.getUniformLocation(silverstoneProg,'uVP'),sun:gl.getUniformLocation(silverstoneProg,'uSun'),tex:gl.getUniformLocation(silverstoneProg,'uTex'),color:gl.getUniformLocation(silverstoneProg,'uColor'),cutoff:gl.getUniformLocation(silverstoneProg,'uCutoff'),useTex:gl.getUniformLocation(silverstoneProg,'uUseTex'),surfaceClass:gl.getUniformLocation(silverstoneProg,'uSurfaceClass')};
@@ -1284,7 +1352,7 @@ async function loadCustomCar(){
    const batches=doc.meshes[0].primitives.map(pr=>{const ids=accessorView(pr.indices,'u32');return {name:pr.extras.animationGroup,group:groups[pr.extras.animationGroup]??0,count:ids.length,ib:buffer(gl.ELEMENT_ARRAY_BUFFER,ids),pb:buffer(gl.ARRAY_BUFFER,accessorView(pr.attributes.POSITION,'f32')),nb:buffer(gl.ARRAY_BUFFER,accessorView(pr.attributes.NORMAL,'f32')),uvb:buffer(gl.ARRAY_BUFFER,accessorView(pr.attributes.TEXCOORD_0,'f32'))}});
    const img=doc.images[0],iv=doc.bufferViews[img.bufferView],imgOffset=binStart+(iv.byteOffset||0),imgBytes=new Uint8Array(full,imgOffset,iv.byteLength);
    const bitmap=await createImageBitmap(new Blob([imgBytes],{type:img.mimeType||'image/jpeg'}));
-   const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,bitmap);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+   const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,bitmap);configureCarTexture(bitmap);
    userCarAsset={batches,tex};status.textContent='CUSTOM MODEL READY';status.style.color='#8be2a1';
  }catch(e){status.textContent='MODEL LOAD FAILED · DEFAULT CAR';status.style.color='#ffb2a4';console.error('Could not load embedded custom car model:',e);}
 }
@@ -1521,7 +1589,7 @@ async function loadNpcCar(){
      if(textureCache.has(imageIndex))return textureCache.get(imageIndex);
      const image=doc.images[imageIndex],iv=doc.bufferViews[image.bufferView],offset=binStart+(iv.byteOffset||0),bytes=new Uint8Array(full,offset,iv.byteLength);
      const bitmap=await createImageBitmap(new Blob([bytes],{type:image.mimeType||'image/png'}));
-     const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,bitmap);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+     const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,bitmap);configureCarTexture(bitmap);
      textureCache.set(imageIndex,tex);return tex;
    }
    const batches=[],wheelCenters=[[0,0,0]],wheelAxes=[[0,0,1]],groups={Front_Left:1,Front_Right:2,Rear_Left:3,Rear_Right:4};
@@ -1574,7 +1642,7 @@ async function loadFerrariCar(){
    for(let i=0;i<(doc.images||[]).length;i++){
      const im=doc.images[i],iv=doc.bufferViews[im.bufferView],off=binStart+(iv.byteOffset||0),bytes=new Uint8Array(full,off,iv.byteLength);
      const bitmap=await createImageBitmap(new Blob([bytes],{type:im.mimeType||'image/png'}));
-     const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,bitmap);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+     const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,bitmap);configureCarTexture(bitmap);
      images.push(tex);bitmap.close();
    }
    const textures=(doc.textures||[]).map(t=>images[t.source]||null);
@@ -1615,7 +1683,7 @@ async function loadMercedesCar(){
    const batch={name:'mercedesBody',group:0,count:ids.length,ib:buf(gl.ELEMENT_ARRAY_BUFFER,ids),pb:buf(gl.ARRAY_BUFFER,acc(pr.attributes.POSITION,'f32')),nb:buf(gl.ARRAY_BUFFER,acc(pr.attributes.NORMAL,'f32')),uvb:buf(gl.ARRAY_BUFFER,acc(pr.attributes.TEXCOORD_0,'f32'))};
    const img=doc.images[0],iv=doc.bufferViews[img.bufferView],off=binStart+(iv.byteOffset||0),bytes=new Uint8Array(full,off,iv.byteLength);
    const bitmap=await createImageBitmap(new Blob([bytes],{type:img.mimeType||'image/jpeg'}));
-   const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,bitmap);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+   const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,bitmap);configureCarTexture(bitmap);
    mercedesCarAsset={batch,tex};status.textContent='MERCEDES CAR READY';status.style.color='#8be1a2';document.querySelectorAll('option[value="mercedes"]').forEach(o=>{o.disabled=false;o.textContent='Mercedes · Available';});
  }catch(e){status.textContent='MERCEDES LOAD FAILED';status.style.color='#ffb2a4';console.error('Could not load Mercedes model:',e);}
 }
@@ -1645,7 +1713,7 @@ async function loadAdditionalTeamCar(team){
    const batch={name:team+'Body',group:0,count:ids.length,ib:buf(gl.ELEMENT_ARRAY_BUFFER,ids),pb:buf(gl.ARRAY_BUFFER,acc(pr.attributes.POSITION,'f32')),nb:buf(gl.ARRAY_BUFFER,acc(pr.attributes.NORMAL,'f32')),uvb:buf(gl.ARRAY_BUFFER,acc(pr.attributes.TEXCOORD_0,'f32'))};
    const img=doc.images[0],iv=doc.bufferViews[img.bufferView],off=binStart+(iv.byteOffset||0),bytes=new Uint8Array(full,off,iv.byteLength);
    const bitmap=await createImageBitmap(new Blob([bytes],{type:img.mimeType||'image/jpeg'}));
-   const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,bitmap);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+   const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,bitmap);configureCarTexture(bitmap);
    const asset={batch,tex};additionalTeamAssets[team]=asset;
    if(status)status.textContent=teamDisplayName(team)+' MODEL READY';
    return asset;
@@ -1997,7 +2065,7 @@ function getSurfaceAt(x,z){
 const tyreHealth=[100,100,100,100];
 let tyreWearEnabled=true,tyreCompound='medium';
 const TYRE_COMPOUNDS={soft:{name:'SOFT · S',grip:1.08,wear:1.35},medium:{name:'MEDIUM · M',grip:1,wear:1},hard:{name:'HARD · H',grip:.94,wear:.65},inter:{name:'INTERMEDIATE · I',grip:.82,wear:1.8},wet:{name:'FULL WET · W',grip:.68,wear:2.4}};
-function tyreGripAt(axle){return TYRE_COMPOUNDS[tyreCompound].grip*(tyreWearEnabled?.25+.75*Math.pow((tyreHealth[axle]+tyreHealth[axle+1])/200,1.3):1);}
+function tyreGripAt(axle){return WEATHER[weatherKey].grip*TYRE_COMPOUNDS[tyreCompound].grip*(tyreWearEnabled?.25+.75*Math.pow((tyreHealth[axle]+tyreHealth[axle+1])/200,1.3):1);}
 function wearTyres(dt,distance,braking,locked){
  if(!tyreWearEnabled||distance<.0001||dt<=0)return;
  const c=Math.cos(carHeading),s=Math.sin(carHeading),moving=Math.min(1,distance/dt/3);
@@ -2042,7 +2110,7 @@ function update(dt){
    const v=clamp(carSpeed/MAX_WORLD_SPEED,0,1);
    const speedDependentDecel=2.0+8.0*Math.pow(1-v,0.82); // faster at lower speeds
    const lockEfficiency=tireLocked?0.67:1.0; // locked tyres still slow the car, but less effectively
-   carSpeed=Math.max(0,carSpeed-speedDependentDecel*pressure*lockEfficiency*dt);
+   carSpeed=Math.max(0,carSpeed-speedDependentDecel*pressure*lockEfficiency*WEATHER[weatherKey].grip*dt);
  }else if(forward){
    brakePressure=moveToward(brakePressure,0,dt*3.5);
    if(carSpeed<0)carSpeed=Math.min(0,carSpeed+8.0*dt);
@@ -2251,6 +2319,7 @@ function draw(now,dt){
    const wheelSet=[{x:-1.337,z:-.96,front:false},{x:-1.337,z:.96,front:false},{x:1.093,z:-.96,front:true},{x:1.093,z:.96,front:true}];
    for(const wheel of wheelSet){let wm=multiply(carM,translationMatrix(wheel.x,.34,wheel.z));if(wheel.front)wm=multiply(wm,carModelMatrix(0,0,0,frontWheelSteer));wm=multiply(wm,rotationZMatrix(wheelSpin));gl.uniformMatrix4fv(locModel,false,wm);gl.drawArrays(gl.TRIANGLES,0,wheelBuffers.count);}
  }
+ renderWeather(mvp,eye,dt);
  requestAnimationFrame(loop);
 }
 function clearDriveKeys(){for(const k in keys)keys[k]=false;}
@@ -2604,11 +2673,43 @@ document.body.append(audioSetup);document.getElementById('audioSetupControls').a
 document.getElementById('audioSetupContinue').onclick=document.getElementById('audioSetupSkip').onclick=()=>{audioSetup.hidden=true;document.getElementById('practiceMode').focus();};
 for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE AUDIO';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
 const audioInput=document.getElementById('engineAudioFile'),audioStatus=document.getElementById('engineAudioStatus');
+// Store the original recording once, then restore it on later visits.
+function engineStore(mode,action){return new Promise((resolve,reject)=>{
+ const request=indexedDB.open('formula-engine-audio',1);
+ request.onupgradeneeded=()=>request.result.createObjectStore('recordings');
+ request.onerror=()=>reject(request.error);
+ request.onsuccess=()=>{const db=request.result,tx=db.transaction('recordings',mode);let result;
+ const op=action(tx.objectStore('recordings'));op.onsuccess=()=>result=op.result;
+ tx.oncomplete=()=>{db.close();resolve(result);};tx.onerror=()=>{db.close();reject(tx.error);};};
+});}
+async function installEngineAudio(bytes){
+ gameAudioContext??=new AudioContext();
+ const decoded=await gameAudioContext.decodeAudioData(bytes.slice(0));
+ if(Math.abs(decoded.duration-75.392)>.2)throw Error('Select the original 75-second Audio Lab recording.');
+ gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);
+ // Retain source for self-contained offline export, without re-encoding audio.
+ const data=new Uint8Array(bytes),parts=[];
+ for(let i=0;i<data.length;i+=24576)parts.push(btoa(String.fromCharCode(...data.subarray(i,i+24576))));
+ window.__engineSourceBase64=parts.join('');
+ audioStatus.textContent='Engine audio ready';document.getElementById('audioSetupContinue').disabled=false;
+}
 audioInput.onchange=async()=>{const file=audioInput.files[0];if(!file)return;audioInput.disabled=true;
- try{gameAudioContext??=new AudioContext();await gameAudioContext.resume();audioStatus.textContent='Loading engine audio…';
- const decoded=await gameAudioContext.decodeAudioData(await file.arrayBuffer());if(Math.abs(decoded.duration-75.392)>.2)throw Error('Select the original 75-second Audio Lab recording.');
- gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='Engine audio ready · coast and first-gear replay intervals enabled';document.getElementById('audioSetupContinue').disabled=false;
- }catch(error){audioStatus.textContent=error.message||'Unable to decode audio. Try an MP3 or M4A file.';}finally{audioInput.disabled=false;}};
+ try{const bytes=await file.arrayBuffer();await installEngineAudio(bytes);gameAudioContext.resume().catch(()=>{});
+ try{await engineStore('readwrite',store=>store.put(bytes,'original'));audioStatus.textContent='Engine audio ready · source saved for future visits';}catch{audioStatus.textContent='Engine ready · browser storage unavailable; download offline HTML to keep the recording.';}
+ }catch(error){audioStatus.textContent=error.message||'Unable to decode audio.';}finally{audioInput.disabled=false;}};
+async function restoreEngineAudio(){
+ try{
+  let bytes;
+  if(__embeddedAssets?.engineAudio){const raw=atob(__embeddedAssets.engineAudio);bytes=Uint8Array.from(raw,c=>c.charCodeAt(0)).buffer;}
+  else{try{bytes=await engineStore('readonly',store=>store.get('original'));}catch{}
+   if(!bytes){const response=await fetch('assets/engine-source.mp4');if(!response.ok)throw Error('No bundled recording');bytes=await response.arrayBuffer();}}
+  // An explicit user upload wins over a slow background restore.
+  if(!gameAudioEngine){await installEngineAudio(bytes);audioSetup.hidden=true;}
+ }catch{if(!gameAudioEngine)audioStatus.textContent='Choose the original recording once. It will be saved on this browser and included in offline downloads.';}
+}
+restoreEngineAudio();
+// Browsers require a user gesture to start Web Audio, even for bundled recordings.
+for(const event of ['pointerdown','keydown'])document.addEventListener(event,()=>{if(gameAudioContext?.state==='suspended')gameAudioContext.resume().catch(()=>{});});
 function updateGameAudio(dt){if(!gameAudioEngine)return;const active=gameStarted&&!gamePaused&&!resumeCountdownActive&&!document.hidden&&audioSetup.hidden;
  if(!gameStarted)gameAudioEngine.reset();
  gameAudioEngine.update({active,throttle:!!(keys.w||keys.arrowup),brake:!!(keys.s||keys.arrowdown),auto:true,volume:Number(document.getElementById('engineAudioVolume').value)});
@@ -2617,6 +2718,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&gameAudioE
 document.getElementById('resetCar').addEventListener('click',()=>gameAudioEngine?.reset());
 window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r'&&practiceConfigured&&!gamePaused&&!resumeCountdownActive)gameAudioEngine?.reset();});
 
+for(const program of [prog,carProg,importedProg,silverstoneProg,skyProg])registerWeather(program);
+setWeather(weatherKey);
 let previous=performance.now();function loop(t){const dt=Math.min(.04,Math.max(0,(t-previous)/1000));previous=t;updateStartLights(t);updateResumeCountdown(t);if(gameStarted&&!gamePaused&&!resumeCountdownActive){update(dt);samplePlayerForGhost(t);updateNpc(dt);updateRideHeights(dt);}updateGameAudio(dt);drawReplayFrame(t,dt);updateFrameRateMeter(t);}requestAnimationFrame(loop);
 
  const settingsToggle=document.getElementById('settingsToggle'),settingsPanel=document.getElementById('settingsPanel');

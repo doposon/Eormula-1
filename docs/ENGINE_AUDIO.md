@@ -1,3 +1,5 @@
+> Weather update: engine recordings can now be bundled, cached and embedded in offline downloads. See [WEATHER.md](WEATHER.md). The original source is still needed.
+
 ## Sound 06: fade replay endings
 
 Coast and brake-1 repeat index 0 plays with the original envelope. Subsequent repeats fade linearly to zero over the final min(0.25s, 65% of clip duration). A resumed repeat reconstructs the current envelope position. The marked clip boundaries, gear clock, levels and progressively widening silent gaps remain unchanged. Real Web Audio rendering verifies both quiet gaps and lower RMS at repeat tails.
