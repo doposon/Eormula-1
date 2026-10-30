@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=tyres7';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=stint8';
 
 export default function startGame(__embeddedAssets) {
 
@@ -1995,20 +1995,21 @@ function getSurfaceAt(x,z){
 }
 // TYRE_WEAR_BEGIN
 const tyreHealth=[100,100,100,100];
-let tyreWearEnabled=true;
-function tyreGripAt(axle){return tyreWearEnabled?.25+.75*Math.pow((tyreHealth[axle]+tyreHealth[axle+1])/200,1.3):1;}
+let tyreWearEnabled=true,tyreCompound='medium';
+const TYRE_COMPOUNDS={soft:{name:'软胎 S',grip:1.08,wear:1.35},medium:{name:'中性胎 M',grip:1,wear:1},hard:{name:'硬胎 H',grip:.94,wear:.65},inter:{name:'半雨 I · 干地',grip:.82,wear:1.8},wet:{name:'全雨 W · 干地',grip:.68,wear:2.4}};
+function tyreGripAt(axle){return TYRE_COMPOUNDS[tyreCompound].grip*(tyreWearEnabled?.25+.75*Math.pow((tyreHealth[axle]+tyreHealth[axle+1])/200,1.3):1);}
 function wearTyres(dt,distance,braking,locked){
  if(!tyreWearEnabled||distance<.0001||dt<=0)return;
  const c=Math.cos(carHeading),s=Math.sin(carHeading),moving=Math.min(1,distance/dt/3);
  [[1.3,-.67],[1.3,.67],[-1.7,-.67],[-1.7,.67]].forEach(([x,z],i)=>{
   const grass=getSurfaceAt(carX+c*x-s*z,carZ+s*x+c*z)==='GRASS';
-  const wear=distance*(grass?.03:.0004)+dt*moving*(braking*(i<2?.12:.045)+(locked&&i<2?12:0));
+  const wear=TYRE_COMPOUNDS[tyreCompound].wear*(distance*(grass?.008:.0001)+dt*moving*(braking*(i<2?.03:.012)+(locked&&i<2?4:0)));
   tyreHealth[i]=Math.max(0,tyreHealth[i]-wear);
  });
 }
 function updateTyreHud(){
  const panel=document.getElementById('tyreHud');panel.hidden=!practiceConfigured;
- document.getElementById('tyreMode').textContent=tyreWearEnabled?'耐久':'磨损关闭';
+ document.getElementById('tyreMode').textContent=TYRE_COMPOUNDS[tyreCompound].name+(tyreWearEnabled?'':' · 磨损关闭');
  tyreHealth.forEach((v,i)=>{const el=document.getElementById('tyre'+i);el.querySelector('strong').textContent=v.toFixed(1)+'%';el.querySelector('meter').value=v;});
 }
 // TYRE_WEAR_END
@@ -2088,7 +2089,7 @@ function update(dt){
  const maxGripYawRate=speedAbs>0.15?maxLateralAcceleration/speedAbs:Infinity;
  const yawRate=Math.sign(bicycleYawRate)*Math.min(Math.abs(bicycleYawRate),maxGripYawRate);
  actualTurnRadius=(speedAbs>0.15 && Math.abs(yawRate)>0.002)?speedAbs/Math.abs(yawRate):Infinity;
- carHeading+=yawRate*dt*(1+(1-tyreGripAt(2))*.7*Math.min(1,speedAbs/10));
+ carHeading+=yawRate*dt*(1+Math.max(0,1-tyreGripAt(2))*.7*Math.min(1,speedAbs/10));
  // Separate body heading from movement direction. Road/kerb re-align the trajectory quickly;
  // grass has low lateral grip, so momentum carries the car forward while the body gradually rotates.
  const headingDelta=Math.atan2(Math.sin(carHeading-travelHeading),Math.cos(carHeading-travelHeading));
@@ -2255,6 +2256,7 @@ function clearDriveKeys(){for(const k in keys)keys[k]=false;}
 let countdownActive=false, lightsStartedAt=0;
 const START_LIGHT_STEP_SECONDS=0.65, START_LIGHTS_OUT_SECONDS=4.15;
 let practiceConfigured=false;
+let lapLimit=Infinity,sessionFinished=false,resultTimer;
 let timingActive=false, sessionStartedAt=0, lapStartedAt=0, lapTimes=[], lastLapDeltaMs=null, previousLapProgress=null, lastLapCrossAt=0;
 let currentPlayerLapSamples=[],lastPlayerLapSamples=[],npcLapReplay=null,npcReplayStartAt=0,npcReplayDurationMs=0;
 let npcGhostActive=false,bestLapMs=Infinity,bestLapSamples=[],playerLapDistance=0;
@@ -2278,7 +2280,16 @@ function spawnBestLapGhost(now){
  npcFrontWheelSteer=first.frontWheelSteer||0;npcSpeedKmh=first.speedKmh||0;
  npcRideY=rideTargetY(npcX,npcZ);
 }
+function showSessionResult(){
+ const box=document.getElementById('sessionResult'),total=lapTimes.reduce((a,b)=>a+b,0);
+ box.replaceChildren();const title=document.createElement('strong');title.textContent=Number.isFinite(lapLimit)?lapTimes.length+' 圈完成 · '+formatStopwatch(total):'LAP '+lapTimes.length+' · '+formatStopwatch(lapTimes.at(-1));box.append(title);
+ const rows=Number.isFinite(lapLimit)?lapTimes:[lapTimes.at(-1)];
+ rows.forEach((ms,i)=>{const row=document.createElement('div');row.textContent='LAP '+(Number.isFinite(lapLimit)?i+1:lapTimes.length)+'  '+formatStopwatch(ms);box.append(row);});
+ if(Number.isFinite(lapLimit)){const hint=document.createElement('small');hint.textContent='R · 重新计时';box.append(hint);}
+ clearTimeout(resultTimer);box.hidden=false;box.style.animation='none';void box.offsetWidth;box.style.animation='';resultTimer=setTimeout(()=>{box.hidden=true;},2600);
+}
 function finishRecordedPlayerLap(now){
+ if(!timingActive||sessionFinished)return;
  const ms=now-lapStartedAt;
  // A start-grid-to-finish shortcut is not a full lap: restart recording at the line.
  const enough=playerLapDistance>=(MIN_GHOST_LAP_DISTANCE[selectedTrack]||100)&&ms>8000;
@@ -2290,6 +2301,8 @@ function finishRecordedPlayerLap(now){
   }
   lastLapDeltaMs=lapTimes.length?ms-lapTimes[lapTimes.length-1]:null;
   lapTimes.push(ms);renderLapHistory();
+  if(lapTimes.length>=lapLimit){sessionFinished=true;timingActive=false;showSessionResult();}
+  else if(!Number.isFinite(lapLimit))showSessionResult();
   console.info('COMPLETED LAP',selectedTrack,'lap',lapTimes.length,'best',Math.round(bestLapMs),'ghost active',npcGhostActive);
  }else console.info('Crossed start/finish; waiting for a complete lap',selectedTrack,Math.round(playerLapDistance));
  lapStartedAt=now;lastLapCrossAt=now;playerLapDistance=0;
@@ -2337,6 +2350,7 @@ function formatStopwatch(ms){
  return String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0')+'.'+String(millis).padStart(3,'0');
 }
 function clearPracticeTiming(){
+ sessionFinished=false;clearTimeout(resultTimer);document.getElementById('sessionResult').hidden=true;
  timingActive=false;sessionStartedAt=0;lapStartedAt=0;lapTimes=[];lastLapDeltaMs=null;previousLapProgress=null;lastLapCrossAt=0;singaporePreviousTimingPosition=null;spaPreviousTimingPosition=null;silverstonePreviousTimingPosition=null;
  // Reset every transient effect and the recorded lap ghost along with the lap-time table.
  currentPlayerLapSamples=[];lastPlayerLapSamples=[];npcLapReplay=null;npcReplayStartAt=0;npcReplayDurationMs=0;
@@ -2347,9 +2361,9 @@ function clearPracticeTiming(){
 function updatePracticeTimingDisplay(now){
  const totalEl=document.getElementById('sessionTime'),currentEl=document.getElementById('currentLapTime'),lastEl=document.getElementById('lastLapTime'),deltaEl=document.getElementById('lapDelta'),lapNoEl=document.getElementById('timingLapNumber');
  if(!totalEl)return;
- const total=timingActive?now-sessionStartedAt:0,current=timingActive?now-lapStartedAt:0;
+ const total=sessionFinished?lapTimes.reduce((a,b)=>a+b,0):timingActive?now-sessionStartedAt:0,current=sessionFinished?(lapTimes.at(-1)||0):timingActive?now-lapStartedAt:0;
  totalEl.textContent=formatStopwatch(total);currentEl.textContent=formatStopwatch(current);
- lapNoEl.textContent='LAP '+(lapTimes.length+1);
+ lapNoEl.textContent=sessionFinished?'FINISHED · '+lapTimes.length+' / '+lapLimit:'LAP '+(lapTimes.length+1)+(Number.isFinite(lapLimit)?' / '+lapLimit:' / ∞');
  lastEl.textContent=lapTimes.length?formatStopwatch(lapTimes[lapTimes.length-1]):'—';
  deltaEl.classList.remove('faster','slower');
  if(lastLapDeltaMs===null){deltaEl.textContent='—';}
@@ -2501,6 +2515,8 @@ function beginPracticeStart(difficulty){
  selectedNpcTeam=document.getElementById('npcTeamSelect').value||'redbull';
  NPC_STRAIGHT_KMH=cfg.straight;NPC_CORNER_KMH=cfg.corner;NPC_BRAKE_ZONE=cfg.brakeZone;
  tyreWearEnabled=document.getElementById('tyreWearEnabled').checked;
+ tyreCompound=document.getElementById('tyreCompound').value;
+ lapLimit=Number(document.getElementById('lapLimit').value)||Infinity;
  practiceConfigured=true;
  cameraMode='chase';chase();
  document.getElementById('teamScreen').classList.add('hidden');

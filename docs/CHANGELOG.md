@@ -1,3 +1,7 @@
+## Tyre compounds and timed stints
+
+Pre-drive selection now offers soft/medium/hard/intermediate/wet tyres and 1–5 or unlimited laps. Compound grip and wear are tuned for the current dry surface; wet-weather performance is not simulated yet. Base road wear is quartered, grass reduced to 0.008 points/metre and front lockup to 4 points/second before compound multipliers. Each valid lap remains in the history. Finite stints show summed lap time and individual laps for about two seconds then fade, freeze timing at the target, and restart with R. Unlimited sessions keep recording and show each lap result.
+
 ## Optional tyre wear and HUD layout
 
 Four tyre durability percentages appear at top left; lap timing moves to bottom right. The pre-drive team screen enables/disables wear. Fresh starts and grid resets fit new tyres. Actual travelled distance controls baseline and per-wheel grass wear; stationary cars never wear. Braking adds modest wear and lockup rapidly wears the front pair. Front axle grip reduces steering/yaw capacity (understeer); rear grip reduces traction and trajectory stability (slip/oversteer). Disabled wear uses full grip. Normal wear is 0.0004 percentage points/metre, grass 0.03; moving lockup adds 12 points/second to each front tyre. Replay fade now occupies only the final min(0.09s, 20% of duration), except the unchanged first clip.
