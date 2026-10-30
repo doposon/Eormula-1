@@ -1,3 +1,7 @@
+## Optional tyre wear and HUD layout
+
+Four tyre durability percentages appear at top left; lap timing moves to bottom right. The pre-drive team screen enables/disables wear. Fresh starts and grid resets fit new tyres. Actual travelled distance controls baseline and per-wheel grass wear; stationary cars never wear. Braking adds modest wear and lockup rapidly wears the front pair. Front axle grip reduces steering/yaw capacity (understeer); rear grip reduces traction and trajectory stability (slip/oversteer). Disabled wear uses full grip. Normal wear is 0.0004 percentage points/metre, grass 0.03; moving lockup adds 12 points/second to each front tyre. Replay fade now occupies only the final min(0.09s, 20% of duration), except the unchanged first clip.
+
 ## Grid asphalt, forgiving runoff edge, soft kerbs and replay fades
 
 Spa now includes start-grid asphalt material 63 and patch-joint material 72. Runoff penalties begin 0.7m beyond the authored asphalt/kerb footprint. Singapore retains immediate road height contact, uses adjoining road rather than kerb faces for chassis attitude, samples broad slopes and damps road angles independently of the original spring-based kerb feedback. Removed discontinuous tyre-clearance boosts that caused chassis height jumps. Coast and brake-1 replays after the first fade to zero at their existing segment ends, preserving the original clips, timings and widening silent gaps.

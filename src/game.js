@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=refine6';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=tyres7';
 
 export default function startGame(__embeddedAssets) {
 
@@ -1919,7 +1919,7 @@ function setCameraView(mode){
 function syncCameraChoice(){document.querySelectorAll('.camera-choice').forEach(b=>{const active=b.dataset.view===cameraMode;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));});}
 function cycleCameraView(){const idx=CAMERA_SEQUENCE.indexOf(cameraMode);setCameraView(CAMERA_SEQUENCE[(idx+1)%CAMERA_SEQUENCE.length]);}
 
-function resetCar(){if(selectedTrack==='silverstone'){
+function resetCar(){tyreHealth.fill(100);if(selectedTrack==='silverstone'){
     // Silverstone 2024: the imported GLB's grid heads in the opposite direction
     // from the previous build. Turn the car 180 degrees around the world-up axis.
     // Starting from the previous verified asphalt position, advance toward the
@@ -1993,6 +1993,25 @@ function getSurfaceAt(x,z){
  if(curved&&td<=7.45)return 'KERB';
  return 'GRASS';
 }
+// TYRE_WEAR_BEGIN
+const tyreHealth=[100,100,100,100];
+let tyreWearEnabled=true;
+function tyreGripAt(axle){return tyreWearEnabled?.25+.75*Math.pow((tyreHealth[axle]+tyreHealth[axle+1])/200,1.3):1;}
+function wearTyres(dt,distance,braking,locked){
+ if(!tyreWearEnabled||distance<.0001||dt<=0)return;
+ const c=Math.cos(carHeading),s=Math.sin(carHeading),moving=Math.min(1,distance/dt/3);
+ [[1.3,-.67],[1.3,.67],[-1.7,-.67],[-1.7,.67]].forEach(([x,z],i)=>{
+  const grass=getSurfaceAt(carX+c*x-s*z,carZ+s*x+c*z)==='GRASS';
+  const wear=distance*(grass?.03:.0004)+dt*moving*(braking*(i<2?.12:.045)+(locked&&i<2?12:0));
+  tyreHealth[i]=Math.max(0,tyreHealth[i]-wear);
+ });
+}
+function updateTyreHud(){
+ const panel=document.getElementById('tyreHud');panel.hidden=!practiceConfigured;
+ document.getElementById('tyreMode').textContent=tyreWearEnabled?'耐久':'磨损关闭';
+ tyreHealth.forEach((v,i)=>{const el=document.getElementById('tyre'+i);el.querySelector('strong').textContent=v.toFixed(1)+'%';el.querySelector('meter').value=v;});
+}
+// TYRE_WEAR_END
 function update(dt){
  const forward=keys['w']||keys['arrowup'],reverse=keys['s']||keys['arrowdown'],left=keys['a']||keys['arrowleft'],right=keys['d']||keys['arrowright'];
  const surfaceBefore=getSurfaceAt(carX,carZ),onGrass=surfaceBefore==='GRASS';
@@ -2029,7 +2048,7 @@ function update(dt){
    else {
      const recoveryAcceleration=1.0-0.42*clamp(tireRecovery/1.5,0,1);
      const grassAccelerationFactor=onGrass?0.04:1.0; // only 4% of engine power reaches the ground on grass; recovery is deliberately very slow
-     carSpeed=Math.min(MAX_WORLD_SPEED,carSpeed+engineAcceleration(currentKmh)*recoveryAcceleration*grassAccelerationFactor*dt);
+     carSpeed=Math.min(MAX_WORLD_SPEED,carSpeed+engineAcceleration(currentKmh)*recoveryAcceleration*grassAccelerationFactor*tyreGripAt(2)*dt);
    }
  }else if(reverse){
    brakePressure=moveToward(brakePressure,0,dt*3.0);
@@ -2062,20 +2081,20 @@ function update(dt){
  const displayForSpin=Math.abs(carSpeed)/MAX_WORLD_SPEED*MAX_DASH_SPEED;
  if(!tireLocked)wheelSpin=(wheelSpin+Math.sign(carSpeed)*(displayForSpin/3.6)/.30*dt)%(Math.PI*2);
  const wheelbase=3.13;
- const bicycleYawRate=(motionSpeed/wheelbase)*Math.tan(frontWheelSteer);
+ const bicycleYawRate=(motionSpeed/wheelbase)*Math.tan(frontWheelSteer)*tyreGripAt(0);
  const recoveryGrip=1.0-0.38*clamp(tireRecovery/1.5,0,1);
- const tireGrip=(tireLocked?0.24:recoveryGrip)*(onGrass?0.28:1.0); // grass has very little lateral grip
+ const tireGrip=(tireLocked?0.24:recoveryGrip)*(onGrass?0.28:1.0)*tyreGripAt(0); // grass has very little lateral grip
  const maxLateralAcceleration=((['silverstone','shanghai','spa','singapore'].includes(selectedTrack))?45.0:17.0)*tireGrip; // map-specific grip calibration: keep F1-like lateral grip on full-size circuit
  const maxGripYawRate=speedAbs>0.15?maxLateralAcceleration/speedAbs:Infinity;
  const yawRate=Math.sign(bicycleYawRate)*Math.min(Math.abs(bicycleYawRate),maxGripYawRate);
  actualTurnRadius=(speedAbs>0.15 && Math.abs(yawRate)>0.002)?speedAbs/Math.abs(yawRate):Infinity;
- carHeading+=yawRate*dt;
+ carHeading+=yawRate*dt*(1+(1-tyreGripAt(2))*.7*Math.min(1,speedAbs/10));
  // Separate body heading from movement direction. Road/kerb re-align the trajectory quickly;
  // grass has low lateral grip, so momentum carries the car forward while the body gradually rotates.
  const headingDelta=Math.atan2(Math.sin(carHeading-travelHeading),Math.cos(carHeading-travelHeading));
  const movementSurface=getSurfaceAt(carX,carZ);
  const directionCatchup=movementSurface==='GRASS'?(0.35+0.30*speedRatio):(movementSurface==='KERB'?3.8:8.5);
- travelHeading+=headingDelta*Math.min(1,dt*directionCatchup);
+ travelHeading+=headingDelta*Math.min(1,dt*directionCatchup*tyreGripAt(2));
  const previousCarX=carX,previousCarZ=carZ;
  carX+=Math.cos(travelHeading)*motionSpeed*dt;
  carZ+=Math.sin(travelHeading)*motionSpeed*dt;
@@ -2085,6 +2104,7 @@ function update(dt){
   carSpeed*=0.34;solidWallImpactTimer=0.42;
   // Keep the steering direction; driver can recover or reverse away from the wall.
  }
+ wearTyres(dt,Math.hypot(carX-previousCarX,carZ-previousCarZ),isBraking?brakePressure:0,tireLocked);
  solidWallImpactTimer=Math.max(0,solidWallImpactTimer-dt);
  const currentSurface=getSurfaceAt(carX,carZ);offroad=currentSurface==='GRASS';
  const displayedKmh=carSpeed<0?Math.abs(carSpeed)*3.6:(Math.abs(carSpeed)/MAX_WORLD_SPEED)*MAX_DASH_SPEED;
@@ -2111,6 +2131,7 @@ function rotationZMatrix(a){const c=Math.cos(a),s=Math.sin(a);return new Float32
 // HUD gears are a virtual automatic readout; engine/traction physics are unchanged.
 let displayGear=1;
 function updateDrivingHud(kmh){
+ updateTyreHud();
  const hud=document.getElementById('drivingHud');hud.hidden=!practiceConfigured;
  const shifts=[0,72,112,152,192,232,272,312,360];
  if(kmh<3)displayGear=1;
@@ -2479,6 +2500,7 @@ function beginPracticeStart(difficulty){
  selectedPlayerTeam=document.getElementById('playerTeamSelect').value||'mclaren';
  selectedNpcTeam=document.getElementById('npcTeamSelect').value||'redbull';
  NPC_STRAIGHT_KMH=cfg.straight;NPC_CORNER_KMH=cfg.corner;NPC_BRAKE_ZONE=cfg.brakeZone;
+ tyreWearEnabled=document.getElementById('tyreWearEnabled').checked;
  practiceConfigured=true;
  cameraMode='chase';chase();
  document.getElementById('teamScreen').classList.add('hidden');

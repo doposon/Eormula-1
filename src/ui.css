@@ -48,3 +48,8 @@
 .audio-setup-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; }
 .audio-setup-actions button { padding:12px 20px; }
 .audio-setup-actions button:disabled { opacity:.4; cursor:default; }
+
+#practiceTiming{right:12px;bottom:12px}
+#tyreHud{position:fixed;top:92px;left:18px;width:176px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--panel);z-index:6;pointer-events:none;font-variant-numeric:tabular-nums}
+#tyreHud[hidden]{display:none}#tyreHud header{color:var(--cyan);font-size:12px;font-weight:bold;margin-bottom:10px}.tyre-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tyre-grid small,.tyre-grid strong{display:block}.tyre-grid small{font-size:10px;color:#a9bec8}.tyre-grid strong{font-size:17px;margin:3px 0}.tyre-grid meter{width:100%;height:10px}.tyre-option{display:block;margin-top:16px;color:#dffcff}.tyre-option input{accent-color:#68f0f0;width:18px;height:18px;vertical-align:middle}.tyre-note{font-size:12px;color:#a9bec8;line-height:1.5}
+@media(max-width:760px){#practiceTiming{width:160px;right:8px;bottom:8px;padding:8px;box-sizing:border-box}#drivingHud{left:8px;bottom:8px;transform:none;width:150px;padding:8px;box-sizing:border-box}.dash-values{gap:4px}#hudGear{font-size:30px}#hudSpeed{font-size:20px}#tyreHud{left:10px;top:86px;width:142px;padding:8px}.tyre-grid{gap:7px}}
