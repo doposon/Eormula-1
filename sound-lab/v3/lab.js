@@ -1,4 +1,4 @@
-import {Drive,Engine,candidates} from './engine.js';
+import {Drive,Engine,candidates} from './engine.js?v=4b55dfe';
 import preset from './preset.json' with {type:'json'};
 const $=id=>document.getElementById(id),drive=new Drive();let ctx,engine,buffer,clips,playing=false,url,sourceName='',previewEnd=null,loading=false;
 const names={low:'低转速',mid:'中转速',high:'高转速',coast:'松油门'};
