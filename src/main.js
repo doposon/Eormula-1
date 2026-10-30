@@ -1,5 +1,5 @@
-import startGame from './game.js?v=audio4';
-import { enableOfflineDownload } from './offline.js?v=audio4';
+import startGame from './game.js?v=rb22wheels1';
+import { enableOfflineDownload } from './offline.js?v=rb22wheels1';
 
 // Keep the original decoders and driving code intact. Binary files contain
 // exactly the bytes formerly embedded as base64 strings, including compression.
@@ -22,7 +22,7 @@ overlay.append(label);
 document.body.append(overlay);
 
 async function checkedFetch(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, {cache:'no-cache'});
   if (!response.ok) throw new Error(`Resource request failed (${response.status}): ${url.pathname}`);
   return response;
 }

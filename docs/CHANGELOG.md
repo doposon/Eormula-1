@@ -1,3 +1,10 @@
+## RB22 separated wheels
+
+- Replaced the RB22 asset with the supplied 22.6 MB GLB, preserving its 41 material parts and embedded textures.
+- Applied exported wheel rest transforms and pivots; four wheels spin, only the front pair steer. Camber axes are preserved during spin.
+- Player, ghost and projected shadow use the same wheel articulation.
+- Browser check passed for model loading, all four pivots and axes, spin and front-only steering uniforms.
+
 # 开发记录
 
 ## 2.17.1 座舱镜头

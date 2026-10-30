@@ -12,8 +12,8 @@
     {
       "id": "asset-002",
       "path": "assets/npc_car_glb_deflate_b64.bin",
-      "bytes": 18369035,
-      "sha256": "46a8c676caedc2c7b08590893e5a61da2f5c6a3e250dc82117f3fb3d0fdfdbe3",
+      "bytes": 18428932,
+      "sha256": "d968d1256a7179bd93e5644fb9f8a41f36e1afba8a804a5c241133be619e9bcf",
       "quote": "'",
       "label": "npc_car_glb_deflate_b64"
     },

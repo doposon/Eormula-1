@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=audio4';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=rb22wheels1';
 
 export default function startGame(__embeddedAssets) {
 
@@ -31,15 +31,16 @@ const locPos=gl.getAttribLocation(prog,'aPos'),locCol=gl.getAttribLocation(prog,
 
 const carVs=`attribute vec3 aCarPos; attribute vec3 aCarNormal; attribute vec2 aCarUV;
 uniform mat4 uCarVP; uniform vec3 uCarPosition; uniform float uCarHeading; uniform vec3 uCarCameraPosition; uniform float uCarGloss; uniform vec3 uCarSunDir;
-uniform float uWheelGroup; uniform vec3 uWheelCenter; uniform float uWheelSpin; uniform float uFrontWheelSteer; uniform float uIsFront; uniform float uCarUVFlipMode; uniform float uBodyRoll; uniform float uBodyPitch; uniform float uWheelLift;
+uniform float uWheelGroup; uniform vec3 uWheelCenter; uniform vec3 uWheelAxis; uniform float uWheelSpin; uniform float uFrontWheelSteer; uniform float uIsFront; uniform float uCarUVFlipMode; uniform float uBodyRoll; uniform float uBodyPitch; uniform float uWheelLift;
 varying vec2 vCarUV; varying float vCarLight; varying float vCarSpec;
 void main(){
  vec3 p=aCarPos; vec3 n=aCarNormal;
  if(uWheelGroup>0.5){
    vec3 c=uWheelCenter; vec3 d=p-c; vec3 nn=n;
    float cs=cos(uWheelSpin), sn=sin(uWheelSpin);
-   p.x=c.x+d.x*cs-d.y*sn; p.y=c.y+d.x*sn+d.y*cs;
-   n.x=nn.x*cs-nn.y*sn; n.y=nn.x*sn+nn.y*cs;
+   vec3 axis=uWheelAxis;
+   p=c+d*cs+cross(axis,d)*sn+axis*dot(axis,d)*(1.0-cs);
+   n=nn*cs+cross(axis,nn)*sn+axis*dot(axis,nn)*(1.0-cs);
    if(uIsFront>0.5){
      d=p-c; nn=n; cs=cos(uFrontWheelSteer); sn=sin(uFrontWheelSteer);
      p.x=c.x+d.x*cs-d.z*sn; p.z=c.z+d.x*sn+d.z*cs;
@@ -69,7 +70,7 @@ void main(){
 }`;
 const carFs=`precision mediump float; varying vec2 vCarUV; varying float vCarLight; varying float vCarSpec; uniform sampler2D uCarTexture; uniform float uCarAlphaMode; uniform float uCarAlphaCutoff; uniform vec4 uCarBaseColor; void main(){ vec4 t=texture2D(uCarTexture,vCarUV)*uCarBaseColor; if(uCarAlphaMode>0.5 && uCarAlphaMode<1.5 && t.a<uCarAlphaCutoff) discard; vec3 rgb=min(t.rgb*vCarLight+vec3(vCarSpec),vec3(1.0)); gl_FragColor=vec4(rgb,t.a); }`;
 const carProg=gl.createProgram();gl.attachShader(carProg,shader(gl.VERTEX_SHADER,carVs));gl.attachShader(carProg,shader(gl.FRAGMENT_SHADER,carFs));gl.linkProgram(carProg);if(!gl.getProgramParameter(carProg,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(carProg));
-const carLoc={pos:gl.getAttribLocation(carProg,'aCarPos'),normal:gl.getAttribLocation(carProg,'aCarNormal'),uv:gl.getAttribLocation(carProg,'aCarUV'),vp:gl.getUniformLocation(carProg,'uCarVP'),position:gl.getUniformLocation(carProg,'uCarPosition'),heading:gl.getUniformLocation(carProg,'uCarHeading'),camera:gl.getUniformLocation(carProg,'uCarCameraPosition'),gloss:gl.getUniformLocation(carProg,'uCarGloss'),sun:gl.getUniformLocation(carProg,'uCarSunDir'),alphaMode:gl.getUniformLocation(carProg,'uCarAlphaMode'),alphaCutoff:gl.getUniformLocation(carProg,'uCarAlphaCutoff'),baseColor:gl.getUniformLocation(carProg,'uCarBaseColor'),group:gl.getUniformLocation(carProg,'uWheelGroup'),center:gl.getUniformLocation(carProg,'uWheelCenter'),spin:gl.getUniformLocation(carProg,'uWheelSpin'),steer:gl.getUniformLocation(carProg,'uFrontWheelSteer'),front:gl.getUniformLocation(carProg,'uIsFront'),bodyRoll:gl.getUniformLocation(carProg,'uBodyRoll'),bodyPitch:gl.getUniformLocation(carProg,'uBodyPitch'),wheelLift:gl.getUniformLocation(carProg,'uWheelLift'),uvFlipMode:gl.getUniformLocation(carProg,'uCarUVFlipMode'),texture:gl.getUniformLocation(carProg,'uCarTexture')};
+const carLoc={pos:gl.getAttribLocation(carProg,'aCarPos'),normal:gl.getAttribLocation(carProg,'aCarNormal'),uv:gl.getAttribLocation(carProg,'aCarUV'),vp:gl.getUniformLocation(carProg,'uCarVP'),position:gl.getUniformLocation(carProg,'uCarPosition'),heading:gl.getUniformLocation(carProg,'uCarHeading'),camera:gl.getUniformLocation(carProg,'uCarCameraPosition'),gloss:gl.getUniformLocation(carProg,'uCarGloss'),sun:gl.getUniformLocation(carProg,'uCarSunDir'),alphaMode:gl.getUniformLocation(carProg,'uCarAlphaMode'),alphaCutoff:gl.getUniformLocation(carProg,'uCarAlphaCutoff'),baseColor:gl.getUniformLocation(carProg,'uCarBaseColor'),group:gl.getUniformLocation(carProg,'uWheelGroup'),center:gl.getUniformLocation(carProg,'uWheelCenter'),axis:gl.getUniformLocation(carProg,'uWheelAxis'),spin:gl.getUniformLocation(carProg,'uWheelSpin'),steer:gl.getUniformLocation(carProg,'uFrontWheelSteer'),front:gl.getUniformLocation(carProg,'uIsFront'),bodyRoll:gl.getUniformLocation(carProg,'uBodyRoll'),bodyPitch:gl.getUniformLocation(carProg,'uBodyPitch'),wheelLift:gl.getUniformLocation(carProg,'uWheelLift'),uvFlipMode:gl.getUniformLocation(carProg,'uCarUVFlipMode'),texture:gl.getUniformLocation(carProg,'uCarTexture')};
 const uintIndicesExt=gl.getExtension('OES_element_index_uint');
 const cachedStencilBits=gl.getParameter(gl.STENCIL_BITS); // cache expensive WebGL state query instead of every frame
 
@@ -354,12 +355,12 @@ function renderSunDisc(vp,eye,screenHeight){
 const castVs=`attribute vec3 aCastPos;
 uniform mat4 uCastVP;uniform vec3 uCastCarPosition;uniform float uCastHeading;uniform float uCastGroundY;
 uniform vec3 uCastSunDirection;uniform mat4 uCastPartMatrix;
-uniform float uCastWheelGroup;uniform vec3 uCastWheelCenter;uniform float uCastWheelSpin;uniform float uCastFrontWheelSteer;uniform float uCastIsFront;
+uniform float uCastWheelGroup;uniform vec3 uCastWheelCenter;uniform vec3 uCastWheelAxis;uniform float uCastWheelSpin;uniform float uCastFrontWheelSteer;uniform float uCastIsFront;
 void main(){
  vec3 p=(uCastPartMatrix*vec4(aCastPos,1.0)).xyz;
  if(uCastWheelGroup>0.5){
   vec3 c=uCastWheelCenter,d=p-c;float co=cos(uCastWheelSpin),si=sin(uCastWheelSpin);
-  p.xy=c.xy+vec2(d.x*co-d.y*si,d.x*si+d.y*co);
+  vec3 axis=uCastWheelAxis;p=c+d*co+cross(axis,d)*si+axis*dot(axis,d)*(1.0-co);
   if(uCastIsFront>0.5){d=p-c;co=cos(uCastFrontWheelSteer);si=sin(uCastFrontWheelSteer);
    p.x=c.x+d.x*co-d.z*si;p.z=c.z+d.x*si+d.z*co;}
  }
@@ -371,7 +372,7 @@ void main(){
 }`;
 const castFs=`precision mediump float;void main(){gl_FragColor=vec4(0.0,0.0,0.0,1.0);}`;
 const castProg=gl.createProgram();gl.attachShader(castProg,shader(gl.VERTEX_SHADER,castVs));gl.attachShader(castProg,shader(gl.FRAGMENT_SHADER,castFs));gl.linkProgram(castProg);if(!gl.getProgramParameter(castProg,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(castProg));
-const castLoc={pos:gl.getAttribLocation(castProg,'aCastPos'),vp:gl.getUniformLocation(castProg,'uCastVP'),car:gl.getUniformLocation(castProg,'uCastCarPosition'),heading:gl.getUniformLocation(castProg,'uCastHeading'),ground:gl.getUniformLocation(castProg,'uCastGroundY'),sun:gl.getUniformLocation(castProg,'uCastSunDirection'),part:gl.getUniformLocation(castProg,'uCastPartMatrix'),wheel:gl.getUniformLocation(castProg,'uCastWheelGroup'),center:gl.getUniformLocation(castProg,'uCastWheelCenter'),spin:gl.getUniformLocation(castProg,'uCastWheelSpin'),steer:gl.getUniformLocation(castProg,'uCastFrontWheelSteer'),front:gl.getUniformLocation(castProg,'uCastIsFront')};
+const castLoc={pos:gl.getAttribLocation(castProg,'aCastPos'),vp:gl.getUniformLocation(castProg,'uCastVP'),car:gl.getUniformLocation(castProg,'uCastCarPosition'),heading:gl.getUniformLocation(castProg,'uCastHeading'),ground:gl.getUniformLocation(castProg,'uCastGroundY'),sun:gl.getUniformLocation(castProg,'uCastSunDirection'),part:gl.getUniformLocation(castProg,'uCastPartMatrix'),wheel:gl.getUniformLocation(castProg,'uCastWheelGroup'),center:gl.getUniformLocation(castProg,'uCastWheelCenter'),axis:gl.getUniformLocation(castProg,'uCastWheelAxis'),spin:gl.getUniformLocation(castProg,'uCastWheelSpin'),steer:gl.getUniformLocation(castProg,'uCastFrontWheelSteer'),front:gl.getUniformLocation(castProg,'uCastIsFront')};
 
 // Final fullscreen blending pass, restricted by the real projected silhouette stencil.
 const darkVs=`attribute vec2 aDarkQuad;void main(){gl_Position=vec4(aDarkQuad,0.0,1.0);}`;
@@ -453,12 +454,12 @@ function renderCasterShadow(team,x,z,heading,spin,steer,rideHeight){
  gl.uniform3f(castLoc.car,x,gy+offset,z);gl.uniform1f(castLoc.heading,carHeading);gl.uniform1f(castLoc.ground,gy);
  gl.uniformMatrix4fv(castLoc.part,false,IDENTITY);gl.uniform1f(castLoc.wheel,0);gl.uniform1f(castLoc.spin,spin);gl.uniform1f(castLoc.steer,steer);
  if(asset&&(asset.batch||asset.batches)){
-  const grouped=team==='mclaren'&&asset.batches;
+  const grouped=(team==='mclaren'||asset.wheelCenters)&&asset.batches;
   for(const batch of (asset.batches||[asset.batch])){
    if(batch.alphaMode==='BLEND')continue; // transparent glass shouldn't cast a solid wall-like shadow
    const group=grouped?(batch.group||0):0;
-   const c=SHADOW_WHEEL_CENTERS[group]||SHADOW_WHEEL_CENTERS[0];
-   gl.uniform1f(castLoc.wheel,group);gl.uniform3f(castLoc.center,c[0],c[1],c[2]);gl.uniform1f(castLoc.front,group===1||group===2?1:0);
+   const c=(asset.wheelCenters||SHADOW_WHEEL_CENTERS)[group]||SHADOW_WHEEL_CENTERS[0];
+   gl.uniform3fv(castLoc.axis,asset.wheelAxes?.[group]||[0,0,1]);gl.uniform1f(castLoc.wheel,group);gl.uniform3f(castLoc.center,c[0],c[1],c[2]);gl.uniform1f(castLoc.front,group===1||group===2?1:0);
    casterMesh(batch);
   }
  }else{
@@ -1275,6 +1276,7 @@ function drawGroupedCarAt(viewProj,asset,x,y,z,heading,spin,steer){
  gl.uniform1f(carLoc.wheelLift,0);
  gl.uniform1i(carLoc.texture,0);
  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,asset.tex);
+ gl.uniform3f(carLoc.axis,0,0,1);
  const centers=[[0,0,0],[1.277133,-0.184574,-0.637920],[1.277133,-0.184345,0.640129],[-1.728492,-0.198543,-0.653947],[-1.729950,-0.198543,0.654607]];
  for(const batch of asset.batches){const i=batch.group,c=centers[i]||centers[0];gl.uniform1f(carLoc.group,i);gl.uniform3f(carLoc.center,c[0],c[1],c[2]);gl.uniform1f(carLoc.front,i===1||i===2?1:0);gl.uniform1f(carLoc.uvFlipMode,0);
    gl.uniform1f(carLoc.wheelLift,activeCarSuspension&&i>=1&&i<=4?activeCarSuspension.wheels[i-1]*0.45:0);
@@ -1285,7 +1287,7 @@ function drawGroupedCarAt(viewProj,asset,x,y,z,heading,spin,steer){
  }
  gl.useProgram(prog);return true;
 }
-function drawSingleCarAt(viewProj,asset,x,y,z,heading){
+function drawSingleCarAt(viewProj,asset,x,y,z,heading,spin=0,steer=0){
  if(!asset||(!asset.batch&&!asset.batches))return false;
  gl.useProgram(carProg);gl.uniform3fv(carLoc.sun,sunDirection);gl.uniformMatrix4fv(carLoc.vp,false,viewProj);gl.uniform3f(carLoc.position,x,y,z);gl.uniform1f(carLoc.heading,heading);gl.uniform3f(carLoc.camera,activeCarCameraPosition[0],activeCarCameraPosition[1],activeCarCameraPosition[2]);gl.uniform1f(carLoc.gloss,(asset.team==='redbull'||asset.modelName==='RB22')?0.28:0.0);gl.uniform1f(carLoc.spin,0);gl.uniform1f(carLoc.steer,0);gl.uniform1f(carLoc.group,0);gl.uniform3f(carLoc.center,0,0,0);gl.uniform1f(carLoc.front,0);
  const suspensionSign=asset===npcCarAsset?1:-1; // Ferrari/Mercedes/etc are modelled facing -X.
@@ -1294,6 +1296,10 @@ function drawSingleCarAt(viewProj,asset,x,y,z,heading){
  gl.uniform1f(carLoc.wheelLift,0);
  gl.uniform1f(carLoc.uvFlipMode,asset.team==='ferrari'?ferrariUvMode:0);gl.uniform1i(carLoc.texture,0);gl.activeTexture(gl.TEXTURE0);
   const drawBatch=(batch,tex)=>{
+    const group=batch.group||0,center=asset.wheelCenters?.[group]||[0,0,0];
+    gl.uniform3fv(carLoc.axis,asset.wheelAxes?.[group]||[0,0,1]);gl.uniform1f(carLoc.group,group);gl.uniform3fv(carLoc.center,center);gl.uniform1f(carLoc.front,group===1||group===2?1:0);
+    gl.uniform1f(carLoc.spin,spin);gl.uniform1f(carLoc.steer,steer);
+    gl.uniform1f(carLoc.wheelLift,activeCarSuspension&&group?activeCarSuspension.wheels[group-1]*.45:0);
     const alphaMode=batch.alphaMode==='BLEND'?2:(batch.alphaMode==='MASK'?1:0);gl.uniform1f(carLoc.alphaMode,alphaMode);gl.uniform1f(carLoc.alphaCutoff,batch.alphaCutoff==null?0.5:batch.alphaCutoff);const factor=batch.baseColorFactor||[1,1,1,1];gl.uniform4f(carLoc.baseColor,factor[0],factor[1],factor[2],factor[3]);if(alphaMode===2){gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);}else{gl.disable(gl.BLEND);gl.depthMask(true);}
     gl.bindTexture(gl.TEXTURE_2D,tex||asset.tex);
    gl.bindBuffer(gl.ARRAY_BUFFER,batch.pb);gl.enableVertexAttribArray(carLoc.pos);gl.vertexAttribPointer(carLoc.pos,3,gl.FLOAT,false,0,0);
@@ -1443,7 +1449,7 @@ function playerBodyFrame(){
 function drawCustomCar(viewProj){
  activeCarSuspension=playerVisualSuspension;
  const p=playerBodyFrame();
- if(selectedPlayerTeam==='redbull')return drawSingleCarAt(viewProj,npcCarAsset,p.x,p.y,p.z,p.heading);
+ if(selectedPlayerTeam==='redbull')return drawSingleCarAt(viewProj,npcCarAsset,p.x,p.y,p.z,p.heading,wheelSpin,frontWheelSteer);
  if(selectedPlayerTeam==='ferrari')return drawSingleCarAt(viewProj,ferrariCarAsset,p.x,p.y,p.z,p.heading);
  if(selectedPlayerTeam==='mercedes')return drawSingleCarAt(viewProj,mercedesCarAsset,p.x,p.y,p.z,p.heading);
  if(additionalTeamAssets[selectedPlayerTeam])return drawSingleCarAt(viewProj,additionalTeamAssets[selectedPlayerTeam],p.x,p.y,p.z,p.heading);
@@ -1465,7 +1471,7 @@ async function loadNpcCar(){
    function accessorData(i,kind){
      const a=doc.accessors[i],v=doc.bufferViews[a.bufferView],off=binStart+(v.byteOffset||0)+(a.byteOffset||0);
      if(kind==='f32')return new Float32Array(full,off,a.count*({SCALAR:1,VEC2:2,VEC3:3,VEC4:4}[a.type]));
-     if(kind==='u32'){if(a.componentType!==5125)throw new Error('Red Bull RB22 indices must be uint32.');return new Uint32Array(full,off,a.count);}
+     if(kind==='u32'){if(a.componentType===5123)return new Uint32Array(new Uint16Array(full,off,a.count));if(a.componentType===5121)return new Uint32Array(new Uint8Array(full,off,a.count));if(a.componentType===5125)return new Uint32Array(full,off,a.count);throw new Error('Unsupported RB22 index format');}
      throw new Error('Unsupported Red Bull RB22 accessor');
    }
    function buffer(target,data){const b=gl.createBuffer();gl.bindBuffer(target,b);gl.bufferData(target,data,gl.STATIC_DRAW);return b;}
@@ -1482,14 +1488,29 @@ async function loadNpcCar(){
      const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,0);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,bitmap);gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
      textureCache.set(imageIndex,tex);return tex;
    }
-   const batches=[];
-   for(const pr of doc.meshes[0].primitives){
+   const batches=[],wheelCenters=[[0,0,0]],wheelAxes=[[0,0,1]],groups={Front_Left:1,Front_Right:2,Rear_Left:3,Rear_Right:4};
+   // Blender wheel vertices are local to each node. Bake its rest transform once;
+   // the existing car shader then spins and steers about the exported origin.
+   function transformed(node,values,normal=false){
+    const out=new Float32Array(values.length),q=node.rotation||[0,0,0,1],scale=node.scale||[1,1,1],t=node.translation||[0,0,0];
+    for(let i=0;i<values.length;i+=3){const x=values[i]*(normal?1/scale[0]:scale[0]),y=values[i+1]*(normal?1/scale[1]:scale[1]),z=values[i+2]*(normal?1/scale[2]:scale[2]);
+     const tx=2*(q[1]*z-q[2]*y),ty=2*(q[2]*x-q[0]*z),tz=2*(q[0]*y-q[1]*x);
+     let rx=x+q[3]*tx+q[1]*tz-q[2]*ty,ry=y+q[3]*ty+q[2]*tx-q[0]*tz,rz=z+q[3]*tz+q[0]*ty-q[1]*tx;
+     if(normal){const len=Math.hypot(rx,ry,rz)||1;rx/=len;ry/=len;rz/=len;}
+     out.set([rx+(normal?0:t[0]),ry+(normal?0:t[1]),rz+(normal?0:t[2])],i);
+    }return out;
+   }
+   for(const node of doc.nodes){if(node.mesh==null)continue;const group=groups[node.name]||0;
+    if(group){wheelCenters[group]=node.translation||[0,0,0];const [qx,qy,qz,qw]=node.rotation||[0,0,0,1];wheelAxes[group]=[2*(qx*qz+qw*qy),2*(qy*qz-qw*qx),1-2*(qx*qx+qy*qy)];}
+    for(const pr of doc.meshes[node.mesh].primitives){
      const ids=accessorData(pr.indices,'u32');
      const [tex]=[await loadTextureForMaterial(pr.material)];
-      const material=doc.materials[pr.material]||{};const batch={name:material.name||'rb22_part',group:0,alphaMode:material.alphaMode||'OPAQUE',alphaCutoff:material.alphaCutoff==null?0.5:material.alphaCutoff,baseColorFactor:(material.pbrMetallicRoughness&&material.pbrMetallicRoughness.baseColorFactor)||[1,1,1,1],count:ids.length,ib:buffer(gl.ELEMENT_ARRAY_BUFFER,ids),pb:buffer(gl.ARRAY_BUFFER,accessorData(pr.attributes.POSITION,'f32')),nb:buffer(gl.ARRAY_BUFFER,accessorData(pr.attributes.NORMAL,'f32')),uvb:buffer(gl.ARRAY_BUFFER,accessorData(pr.attributes.TEXCOORD_0,'f32')),tex};
+      const material=doc.materials[pr.material]||{};const batch={name:material.name||'rb22_part',group,alphaMode:material.alphaMode||'OPAQUE',alphaCutoff:material.alphaCutoff==null?0.5:material.alphaCutoff,baseColorFactor:(material.pbrMetallicRoughness&&material.pbrMetallicRoughness.baseColorFactor)||[1,1,1,1],count:ids.length,ib:buffer(gl.ELEMENT_ARRAY_BUFFER,ids),pb:buffer(gl.ARRAY_BUFFER,transformed(node,accessorData(pr.attributes.POSITION,'f32'))),nb:buffer(gl.ARRAY_BUFFER,transformed(node,accessorData(pr.attributes.NORMAL,'f32'),true)),uvb:buffer(gl.ARRAY_BUFFER,accessorData(pr.attributes.TEXCOORD_0,'f32')),tex};
      batches.push(batch);
    }
-   npcCarAsset={batches,team:'redbull',modelName:'RB22'};
+   }
+   if(wheelCenters.length!==5||[1,2,3,4].some(i=>!wheelCenters[i]))throw Error('RB22 wheel nodes missing');
+   npcCarAsset={batches,wheelCenters,wheelAxes,team:'redbull',modelName:'RB22'};
    status.textContent='RED BULL RB22 READY · '+batches.length+' MATERIAL PARTS';status.style.color='#8be1a2';
  }catch(e){status.textContent='NPC LOAD FAILED';status.style.color='#ffb2a4';console.error('Could not load Red Bull RB22 model:',e);}
 }
@@ -1612,7 +1633,7 @@ function drawNpcCar(viewProj){
  if(selectedNpcTeam==='ferrari')return drawSingleCarAt(viewProj,ferrariCarAsset,npcX,.5+gy,npcZ,npcHeading+Math.PI);
  if(selectedNpcTeam==='mercedes')return drawSingleCarAt(viewProj,mercedesCarAsset,npcX,.5+gy,npcZ,npcHeading+Math.PI);
  if(additionalTeamAssets[selectedNpcTeam])return drawSingleCarAt(viewProj,additionalTeamAssets[selectedNpcTeam],npcX,.5+gy,npcZ,npcHeading+Math.PI);
- return drawSingleCarAt(viewProj,npcCarAsset,npcX,.075+gy,npcZ,npcHeading);
+ return drawSingleCarAt(viewProj,npcCarAsset,npcX,.075+gy,npcZ,npcHeading,npcWheelSpin,npcFrontWheelSteer);
 }
 gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0.69,0.83,0.97,1); // pale-blue daytime sky; track uses the stable base-colour shader, cars retain their own lighting
 function norm(v){const n=Math.hypot(...v)||1;return v.map(x=>x/n)}function sub(a,b){return a.map((x,i)=>x-b[i])}function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]}function dot(a,b){return a.reduce((s,x,i)=>s+x*b[i],0)}
