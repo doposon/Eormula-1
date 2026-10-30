@@ -18,14 +18,14 @@ export function enableOfflineDownload(assets) {
       }));
       const statement = "import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';";
       if (!game.includes(statement)) throw new Error('Unsupported game version');
-      const source = game.replace(statement, '').replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=sound5';", '').replace('export default function startGame', 'function startGame');
+      const source = game.replace(statement, '').replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=refine6';", '').replace('export default function startGame', 'function startGame');
       // Blob parts avoid creating a second giant concatenated source string.
       const parts = [];
       const script = "(()=>{\n'use strict';\n"+camera.replaceAll('export ', '')+'\n'+markedAudio.replaceAll('export ', '')+'\n'+source+'\nstartGame();\n})();';
       let html = template.replace('<link rel="stylesheet" href="src/styles.css">', '<style>'+styles+'</style>')
         .replace('<link rel="stylesheet" href="src/ui.css">', '<style>'+ui+'</style>')
         .replace('id="downloadOffline"', 'id="downloadOffline" hidden');
-      const marker = '<script type="module" src="src/main.js?v=sound5"></script>';
+      const marker = '<script type="module" src="src/main.js?v=refine6"></script>';
       if (!html.includes(marker)) throw new Error('Unsupported page version');
       const [before, after] = html.split(marker);
       parts.push(before, '<script>\n');

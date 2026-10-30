@@ -1,3 +1,7 @@
+## Grid asphalt, forgiving runoff edge, soft kerbs and replay fades
+
+Spa now includes start-grid asphalt material 63 and patch-joint material 72. Runoff penalties begin 0.7m beyond the authored asphalt/kerb footprint. Singapore retains immediate road height contact, uses adjoining road rather than kerb faces for chassis attitude, samples broad slopes and damps road angles independently of the original spring-based kerb feedback. Removed discontinuous tyre-clearance boosts that caused chassis height jumps. Coast and brake-1 replays after the first fade to zero at their existing segment ends, preserving the original clips, timings and widening silent gaps.
+
 ## RB22 spin direction and sound spacing
 
 RB22 wheel spin now reverses sign in the player, ghost and shadow renderers so forward travel rotates the tyres forward. Steering and camber remain intact. Sound 05 removes clip amplification, reduces coast/braking levels and introduces increasingly long silent gaps between coast and brake-1 repetitions.

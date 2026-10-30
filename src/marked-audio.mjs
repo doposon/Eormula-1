@@ -50,6 +50,10 @@ export class MarkedAudio {
  scheduleRepeats(now){const p=this.repeatPlan;if(!p)return;const d=p.spec.duration;
   // Jump past old repeats after a long pause without changing gap progression.
   p.index=Math.max(p.index,Math.max(0,Math.floor((-(d+.075)+Math.sqrt((d+.075)**2+.3*Math.max(0,now-p.base)))/.15)));
-  while(true){const start=p.base+brakeRepeatStart(p.index,d);if(start>now+30)break;p.index++;const end=start+d;if(end<=now)continue;const n=this.ctx.createBufferSource(),at=Math.max(now,start);n.buffer=this.buffer;n.playbackRate.value=1;this.connectSource(n,p.phase);const offset=p.spec.start+at-start;n.start(at,offset,end-at);n.stop(end);this.nodes.push(n);this.node??=n;n.onended=()=>{n.disconnect();n.levelGain?.disconnect();this.nodes=this.nodes.filter(x=>x!==n);};}
+  while(true){const start=p.base+brakeRepeatStart(p.index,d);if(start>now+30)break;const repeat=p.index++;const end=start+d;if(end<=now)continue;const n=this.ctx.createBufferSource(),at=Math.max(now,start);n.buffer=this.buffer;n.playbackRate.value=1;this.connectSource(n,p.phase);
+   if(repeat>0){const fade=Math.min(.25,d*.65),g=n.levelGain.gain,level=this.levels[p.phase]||1;
+    const initial=level*Math.min(1,(end-at)/fade);g.setValueAtTime(initial,at);g.setValueAtTime(initial,Math.max(at,end-fade));g.linearRampToValueAtTime(0,end);
+   }
+   const offset=p.spec.start+at-start;n.start(at,offset,end-at);n.stop(end);this.nodes.push(n);this.node??=n;n.onended=()=>{n.disconnect();n.levelGain?.disconnect();this.nodes=this.nodes.filter(x=>x!==n);};}
  }
 }

@@ -11,7 +11,7 @@ try:
   browser=p.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox'])
   page=browser.new_page();page.goto(f'http://127.0.0.1:{server.server_port}/sound-lab/v7/')
   result=page.evaluate('''async()=>{
-   const {MarkedAudio,APPROVED_AUDIO,markedSegment,brakeRepeatStart}=await import('/src/marked-audio.mjs?v=sound5');
+   const {MarkedAudio,APPROVED_AUDIO,markedSegment,brakeRepeatStart}=await import('/src/marked-audio.mjs?v=refine6');
    const results={};
    for(const mode of ['coast','braking']){
     const ctx=new OfflineAudioContext(1,40*16000,16000),buffer=ctx.createBuffer(1,76*16000,16000),data=buffer.getChannelData(0);
@@ -25,7 +25,8 @@ try:
      if(rms(end+(next-end)*.3,end+(next-end)*.7)>1e-8)throw Error('Gap filled with sound '+mode+' '+i);checked++;
     }
     if(peak>.035||checked<10)throw Error('Volume/replay count incorrect '+mode);
-    results[mode]={peak,checked};
+    const s1=brakeRepeatStart(1,duration),early=rms(s1+.02,s1+.04),late=rms(s1+duration-.025,s1+duration-.005);
+    if(late>early*.35)throw Error('Replay tail does not fade '+mode);results[mode]={peak,checked,tailRatio:late/early};
    }return results;
   }''')
   browser.close();print('PASS real rendered audio has quieter clips and widening silent gaps over 40 seconds:',result)

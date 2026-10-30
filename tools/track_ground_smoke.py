@@ -6,7 +6,8 @@ from playwright.sync_api import sync_playwright
 from smoke import QuietServer,ROOT
 server=ThreadingHTTPServer(('127.0.0.1',0),partial(QuietServer,directory=str(ROOT)))
 threading.Thread(target=server.serve_forever,daemon=True).start()
-source=(ROOT/'src/game.js').read_text().replace('const keys=Object.create(null);', '''window.groundTest={fields:venueContacts,sample:venueContactAt,surface:getSurfaceAt,pose:singaporeGroundPose,
+source=(ROOT/'src/game.js').read_text().replace('const keys=Object.create(null);', '''window.groundTest={grid:SPA_SEMANTIC_META.grid,fields:venueContacts,sample:venueContactAt,surface:getSurfaceAt,pose:singaporeGroundPose,
+ kerb(x,z){carX=x-1.3;carZ=z+.67;carHeading=0;carSpeed=20;clearKerbSuspension(playerKerbSusp);resetRoadFeedback();let prev={pitch:0,roll:0},step=0,angle=0;for(let i=0;i<90;i++){updateRideHeights(1/60);const v=playerVisualSuspension;step=Math.max(step,Math.abs(v.pitch-prev.pitch),Math.abs(v.roll-prev.roll));angle=Math.max(angle,Math.abs(v.pitch),Math.abs(v.roll));prev={pitch:v.pitch,roll:v.roll};}return {step,angle};},
  ride(x,z){carX=x;carZ=z;carHeading=.7;carSpeed=20;playerRideY=-100;updateRideHeights(1/60);return {y:playerRideY,pose:singaporeGroundPose(x,z,.7),body:playerBodyFrame()};},
  drive(x,z,speed,throttle){carX=x;carZ=z;carSpeed=speed;keys.w=throttle;keys.s=false;for(let i=0;i<60;i++){carX=x;carZ=z;update(1/60);}keys.w=false;return carSpeed;}};
 const keys=Object.create(null);''')
@@ -23,6 +24,7 @@ try:
    result=page.evaluate('''track=>{
     const t=groundTest,f=t.fields[track],points=field=>field.triangles.filter((_,i)=>i%Math.max(1,Math.floor(field.triangles.length/600))===0).map(q=>({x:(q.a[0]+q.b[0]+q.c[0])/3,z:(q.a[1]+q.b[1]+q.c[1])/3}));
     if(track==='spa'){
+     for(const g of t.grid){if(t.surface(g.position[0],g.position[2])!=='ROAD')throw Error('Spa grid classified as runoff '+g.index);}
      const grass=points(f.grass).filter(p=>t.surface(p.x,p.z)==='GRASS');if(grass.length<100)throw Error('Runoff not classified');
      for(const p of points(f.road))if(t.surface(p.x,p.z)!=='ROAD')throw Error('Asphalt incorrectly slowed');
      const p=grass[0],fast=t.drive(p.x,p.z,20,true),slow=t.drive(p.x,p.z,0,true);if(fast>10||slow<=0)throw Error('Runoff drag/recovery incorrect '+fast+' '+slow);
@@ -34,7 +36,8 @@ try:
      min=Math.min(min,contact);max=Math.max(max,contact);worst=Math.max(worst,r.y-contact);
      if(r.y-contact>.156||r.y<contact||Math.abs(r.y-r.pose.y)>1e-7||!Number.isFinite(r.body.y))throw Error('Ride disconnected from mesh');
     }
-    if(max-min<1)throw Error('Fixed-height road regression');return {roadTriangles:f.road.triangles.length,min,max,maxClearance:worst};
+    let maxKerbAngleStep=0;for(const p of points(f.kerb).filter((_,i)=>i%40===0)){const k=t.kerb(p.x,p.z);maxKerbAngleStep=Math.max(maxKerbAngleStep,k.step);if(k.step>.03||k.angle>.16)throw Error('Violent kerb reaction '+JSON.stringify(k));}
+    if(max-min<1)throw Error('Fixed-height road regression');return {roadTriangles:f.road.triangles.length,min,max,maxClearance:worst,maxKerbAngleStep};
    }''',track)
    print(track,result,flush=True)
   assert not errors,errors

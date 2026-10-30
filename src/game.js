@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=sound5';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=refine6';
 
 export default function startGame(__embeddedAssets) {
 
@@ -642,20 +642,24 @@ function spaPreciseHeightAt(x,z){
 }
 // Singapore's visible asphalt varies in height; a fixed 47.54 plane cannot support it.
 function singaporeGroundPose(x,z,heading){
- const contact=venueContactAt('singapore','road',x,z,47.54,true)||venueContactAt('singapore','kerb',x,z,47.54,true);
- if(!contact)return {y:47.54,pitch:0,roll:0};
- const angles=roadSlopeAngles(contact.gradX,contact.gradZ,heading);
- // Lift the fitted chassis plane only enough to keep each tyre above the mesh.
- const c=Math.cos(heading),s=Math.sin(heading);let y=contact.height;
- for(const [forward,side] of [[1.3,-.67],[1.3,.67],[-1.7,-.67],[-1.7,.67]]){
-  const dx=c*forward-s*side,dz=s*forward+c*side;
-  const h=venueContactAt('singapore','road',x+dx,z+dz,contact.height);
-  const support=h===null?null:h-contact.gradX*dx-contact.gradZ*dz;
-  // Overlapping road layers beside bridges are not a bump under this tyre.
-  // Keep small road seams supported without lifting the whole car metres upward.
-  if(support!==null&&support-contact.height<.15)y=Math.max(y,support);
+ let contact=venueContactAt('singapore','road',x,z,47.54,true);
+ if(!contact){
+  // A tyre on a kerb still belongs to the adjoining road plane. Kerb side
+  // triangles must never supply the chassis pitch/roll.
+  for(const r of [.7,1.4,2.8]){
+   for(const [dx,dz] of [[r,0],[-r,0],[0,r],[0,-r]]){
+    const q=venueContactAt('singapore','road',x+dx,z+dz,47.54,true);
+    if(q){contact={...q,height:q.height-Math.max(-.08,Math.min(.08,q.gradX))*dx-Math.max(-.08,Math.min(.08,q.gradZ))*dz};break;}
+   }if(contact)break;
+  }
  }
- return {y:y+.005,...angles};
+ if(!contact)return {y:47.54,pitch:0,roll:0};
+ const heights=[[-1,0],[1,0],[0,-1],[0,1]].map(([dx,dz])=>{
+  const y=venueContactAt('singapore','road',x+dx,z+dz,contact.height);
+  return y!==null&&Math.abs(y-contact.height)<.25?y:contact.height;
+ });
+ const angles=roadSlopeAngles((heights[1]-heights[0])/2,(heights[3]-heights[2])/2,heading);
+ return {y:contact.height+.005,pitch:Math.max(-.08,Math.min(.08,angles.pitch)),roll:Math.max(-.08,Math.min(.08,angles.roll))};
 }
 // Continuous local terrain plane, not a changing maximum of five wheel samples.
 // 4x4 Catmull-Rom reconstruction makes slope continuous between the authored 1.5m cells.
@@ -893,7 +897,7 @@ async function loadImportedCircuit(key){
    const uv=a.TEXCOORD_0===undefined?null:silverstoneAccessor(doc,bin,a.TEXCOORD_0,false);
    const normal=a.NORMAL===undefined?null:silverstoneAccessor(doc,bin,a.NORMAL,false);
    const inds=prim.indices===undefined?null:silverstoneAccessor(doc,bin,prim.indices,true);
-   if(key==='spa'&&[45,58,59,60,65,81].includes(prim.material))addVenueContact(key,'road',p.array,inds?.array,1,true);
+   if(key==='spa'&&[45,58,59,60,63,65,72,81].includes(prim.material))addVenueContact(key,'road',p.array,inds?.array,1,true);
    if(key==='spa'&&/grass|sand/i.test(sourceMaterial.name||''))addVenueContact(key,'grass',p.array,inds?.array,1,true);
    if(key==='spa'&&[3,66].includes(prim.material))addVenueContact(key,'kerb',p.array,inds?.array,1,true);
    if(key==='singapore'&&[29,182,183,184].includes(prim.material))addVenueContact(key,'road',p.array,inds?.array,2.1,true);
@@ -1412,8 +1416,9 @@ function rideTargetY(x,z){
 // The existing Shanghai original-kerb physics remains independent and untouched.
 const playerSpaRideFilter=makeSpaRideFilter(),npcSpaRideFilter=makeSpaRideFilter();
 const playerRoadFeedback={heave:0,pitch:0,roll:0};
+const singaporeRoadAngles={pitch:0,roll:0};
 const playerVisualSuspension={heave:0,pitch:0,roll:0,wheels:playerKerbSusp.wheels,active:false};
-function resetRoadFeedback(){playerRoadFeedback.heave=playerRoadFeedback.pitch=playerRoadFeedback.roll=0;resetSpaRideFilter(playerSpaRideFilter);resetSpaRideFilter(npcSpaRideFilter);}
+function resetRoadFeedback(){singaporeRoadAngles.pitch=singaporeRoadAngles.roll=0;playerRoadFeedback.heave=playerRoadFeedback.pitch=playerRoadFeedback.roll=0;resetSpaRideFilter(playerSpaRideFilter);resetSpaRideFilter(npcSpaRideFilter);}
 function updateRoadFeedback(dt){
  const kmh=Math.abs(carSpeed)/MAX_WORLD_SPEED*MAX_DASH_SPEED;
  const pace=Math.max(0,Math.min(1,(kmh-22)/145));
@@ -1433,7 +1438,10 @@ function updateRoadFeedback(dt){
  if(selectedTrack==='singapore'){
   const road=singaporeGroundPose(carX,carZ,carHeading);
   playerVisualSuspension.heave=Math.max(0,playerVisualSuspension.heave);
-  playerVisualSuspension.pitch+=road.pitch;playerVisualSuspension.roll+=road.roll;
+  const blend=1-Math.exp(-Math.min(.05,dt)*8);
+  singaporeRoadAngles.pitch+=(road.pitch-singaporeRoadAngles.pitch)*blend;
+  singaporeRoadAngles.roll+=(road.roll-singaporeRoadAngles.roll)*blend;
+  playerVisualSuspension.pitch+=singaporeRoadAngles.pitch;playerVisualSuspension.roll+=singaporeRoadAngles.roll;
  }
  playerVisualSuspension.active=playerKerbSusp.active;
 }
@@ -1958,7 +1966,13 @@ function getSurfaceAt(x,z){
   if(selectedTrack==='spa'){
    if(venueContactAt('spa','road',x,z)!==null)return 'ROAD';
    if(venueContactAt('spa','kerb',x,z)!==null)return 'KERB';
-   if(venueContacts.spa?.road)return 'GRASS';
+   if(venueContacts.spa?.road){
+    // Give the car centre 70 cm of edge tolerance before applying runoff drag.
+    for(const [dx,dz] of [[.7,0],[-.7,0],[0,.7],[0,-.7],[.495,.495],[-.495,.495],[.495,-.495],[-.495,-.495]]){
+     if(venueContactAt('spa','road',x+dx,z+dz)!==null)return 'ROAD';
+     if(venueContactAt('spa','kerb',x+dx,z+dz)!==null)return 'KERB';
+    }return 'GRASS';
+   }
    const d=spaField(x,z,true);return d<12?'ROAD':d<17?'KERB':'GRASS';
   }
   if(selectedTrack==='singapore')return 'ROAD'; // preview: no reliable surface mesh classification yet
@@ -2509,17 +2523,17 @@ loadShanghaiTrack();
 let gameAudioContext,gameAudioEngine;
 const audioControls=document.createElement('div');
 audioControls.className='settings-section';
-audioControls.innerHTML='<label>ENGINE SOUND 05 · 引擎声浪<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">选择实验台用的约 75 秒录音，即可开启声浪</p><label>音量 <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
+audioControls.innerHTML='<label>ENGINE SOUND 06 · 引擎声浪<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">选择实验台用的约 75 秒录音，即可开启声浪</p><label>音量 <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
 const audioSetup=document.createElement('div');audioSetup.id='audioSetup';audioSetup.setAttribute('role','dialog');audioSetup.setAttribute('aria-modal','true');audioSetup.setAttribute('aria-labelledby','audioSetupTitle');
 audioSetup.innerHTML='<div class="audio-setup-card"><h1 id="audioSetupTitle">开启引擎声浪</h1><p>选择你在声浪实验台使用的原视频或音频。读取完成后，点“进入游戏”。</p><div id="audioSetupControls"></div><div class="audio-setup-actions"><button id="audioSetupContinue" disabled>进入游戏</button><button id="audioSetupSkip">暂时跳过</button></div></div>';
 document.body.append(audioSetup);document.getElementById('audioSetupControls').append(audioControls);
 document.getElementById('audioSetupContinue').onclick=document.getElementById('audioSetupSkip').onclick=()=>{audioSetup.hidden=true;document.getElementById('practiceMode').focus();};
-for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE SOUND 05 · 引擎声浪';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
+for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE SOUND 06 · 引擎声浪';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
 const audioInput=document.getElementById('engineAudioFile'),audioStatus=document.getElementById('engineAudioStatus');
 audioInput.onchange=async()=>{const file=audioInput.files[0];if(!file)return;audioInput.disabled=true;
  try{gameAudioContext??=new AudioContext();await gameAudioContext.resume();audioStatus.textContent='正在读取引擎声浪…';
  const decoded=await gameAudioContext.decodeAudioData(await file.arrayBuffer());if(Math.abs(decoded.duration-75.392)>.2)throw Error('请选择实验台用的约 75 秒原录音');
- gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='声浪 05 已载入 · 松油门／一挡间隔逐渐拉长';document.getElementById('audioSetupContinue').disabled=false;
+ gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='声浪 06 已载入 · 松油门／一挡间隔逐渐拉长';document.getElementById('audioSetupContinue').disabled=false;
  }catch(error){audioStatus.textContent=error.message||'无法读取音轨，请尝试 MP3 或 M4A';}finally{audioInput.disabled=false;}};
 function updateGameAudio(dt){if(!gameAudioEngine)return;const active=gameStarted&&!gamePaused&&!resumeCountdownActive&&!document.hidden&&audioSetup.hidden;
  if(!gameStarted)gameAudioEngine.reset();

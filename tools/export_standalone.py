@@ -26,7 +26,7 @@ def export(destination):
     if game.count(statement)!=1:
         raise ValueError('Update exporter for the changed camera import')
     game = game.replace(statement,'').replace('export default function startGame', 'function startGame')
-    game = game.replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=sound5';", '')
+    game = game.replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=refine6';", '')
     marked_audio = (ROOT/'src/marked-audio.mjs').read_text().replace('export ', '')
     game = re.sub(r'__embeddedAssets\["(asset-\d+)"\]', lambda m:assets[m[1]], game)
     script = "(()=>{\n'use strict';\n"+camera+'\n'+marked_audio+'\n'+game+'\nstartGame();\n})();'
@@ -35,7 +35,7 @@ def export(destination):
     html = (ROOT/'index.html').read_text().replace('id="downloadOffline"', 'id="downloadOffline" hidden')
     for name in ['styles','ui']:
         html = html.replace(f'<link rel="stylesheet" href="src/{name}.css">', '<style>\n'+(ROOT/f'src/{name}.css').read_text()+'\n</style>')
-    html = html.replace('<script type="module" src="src/main.js?v=sound5"></script>', '<script>\n'+script+'\n</script>')
+    html = html.replace('<script type="module" src="src/main.js?v=refine6"></script>', '<script>\n'+script+'\n</script>')
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open('x', encoding='utf-8', newline='\n') as output:
         output.write(html)
