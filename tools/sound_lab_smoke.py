@@ -23,5 +23,10 @@ try:
   with page.expect_download() as info:page.locator('#export').click()
   out=ROOT/'test-results/sound-lab';out.mkdir(parents=True,exist_ok=True);info.value.save_as(str(out/'markers.json'))
   page.locator('#import').set_input_files(str(out/'markers.json'));page.wait_for_function('document.querySelector("#status").textContent.includes("已恢复")')
-  page.screenshot(path=str(out/'lab.png'),full_page=True);assert not errors,errors;b.close();print('PASS MP4/AAC decode, four audio layers, nonzero output, stopped silence, W input, high gear, clip edit, raw preview and marker round-trip')
+  matched=Path(tempfile.gettempdir())/'屏幕录制 2026-10-30 091321.mp4'
+  subprocess.run(['ffmpeg','-v','error','-f','lavfi','-i','color=c=black:s=160x90:r=10:d=75.392','-f','lavfi','-i','aevalsrc=0.25*sin(2*PI*(180*t+15*t*t)):s=44100:d=75.392','-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac','-shortest','-y',str(matched)],check=True)
+  page.locator('#file').set_input_files(str(matched));page.wait_for_function('document.querySelector("#status").textContent.includes("已套用")',timeout=30000)
+  assert '16.00–19.00' in page.locator('#clips').inner_text()
+  assert '23.00–24.00' in page.locator('#clips').inner_text()
+  page.screenshot(path=str(out/'lab-preset.png'),full_page=True);assert not errors,errors;b.close();print('PASS MP4/AAC decode, audio output/silence, controls, marker round-trip and exact user preset auto-match')
 finally:server.shutdown()

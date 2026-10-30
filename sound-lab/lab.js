@@ -1,4 +1,5 @@
 import {Drive,Engine,candidates} from './engine.js';
+import preset from './preset.json' with {type:'json'};
 const $=id=>document.getElementById(id),drive=new Drive();let ctx,engine,buffer,clips,playing=false,url,sourceName='',previewEnd=null,loading=false;
 const names={low:'低转速',mid:'中转速',high:'高转速',coast:'松油门'};
 function audioContext(){if(!ctx){ctx=new AudioContext();engine=new Engine(ctx);}return ctx;}
@@ -11,7 +12,8 @@ function clipValues(){const start=Number($('clipStart').value),length=Number($('
 function message(error){$('status').textContent=error.message||String(error);}
 function waveform(){const c=$('wave'),g=c.getContext('2d'),data=buffer.getChannelData(0);g.clearRect(0,0,c.width,c.height);g.strokeStyle='#70e7cb';g.beginPath();for(let x=0;x<c.width;x++){const from=Math.floor(x*data.length/c.width),to=Math.floor((x+1)*data.length/c.width);let peak=0;for(let i=from;i<to;i+=Math.max(1,Math.floor((to-from)/60)))peak=Math.max(peak,Math.abs(data[i]));g.moveTo(x,55-peak*50);g.lineTo(x,55+peak*50);}g.stroke();}
 $('file').addEventListener('change',async e=>{const file=e.target.files[0];if(!file||loading)return;loading=true;stop();ready(false);$('original').pause();previewEnd=null;buffer=null;clips=null;$('clips').replaceChildren();if(engine)engine.disposeNodes();if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(file);$('original').src=url;sourceName=file.name;$('status').textContent='正在读取音轨并挑选候选片段，大视频可能需要等一会儿…';$('file').disabled=true;
- try{const context=audioContext();await context.resume();buffer=await context.decodeAudioData(await file.arrayBuffer());clips=candidates(buffer);engine.setBank(buffer,clips);waveform();showClips();ready(true);$('clipStart').max=buffer.duration;$('status').textContent=`已读取 ${buffer.duration.toFixed(1)} 秒音轨。已生成自动候选，建议先试听并校准；它们不是准确识别的发动机挡位。`;}
+ try{const context=audioContext();await context.resume();buffer=await context.decodeAudioData(await file.arrayBuffer());const matched=file.name===preset.source&&Math.abs(buffer.duration-preset.duration)<.15;
+ clips=matched?structuredClone(preset.clips):candidates(buffer);engine.setBank(buffer,clips);waveform();showClips();ready(true);$('clipStart').max=buffer.duration;$('status').textContent=matched?`已套用你标记的四段声音（${buffer.duration.toFixed(1)} 秒）。点“启动声音”试听。`:`已读取 ${buffer.duration.toFixed(1)} 秒音轨。这份视频与已保存的「${preset.source}」标记不匹配，当前使用自动候选；也可载入自己的标记。`;}
  catch(error){console.error(error);message('此浏览器未能解码这份音轨，或音轨中没有可用声音。仍可用上方播放器试听；请尝试 Edge / Chrome，或选择 MP3、WAV、M4A 音频。');}
  finally{loading=false;$('file').disabled=false;}});
 $('start').onclick=async()=>{try{await audioContext().resume();$('original').pause();previewEnd=null;playing=true;drive.event='发动机已启动';}catch(e){message(e);}};
