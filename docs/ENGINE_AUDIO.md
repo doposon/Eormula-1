@@ -1,3 +1,7 @@
+## Sound 05: softer clips with widening gaps
+
+Removed the RMS amplification added in Audio 04. Coast clips now play at 65% of the unboosted source level, all braking clips at 70%; the master volume and gradual coast fade still apply. Coast and brake gear 1 each replay their full marked segment as a one-shot with actual silence between plays: 0.15s, 0.30s, 0.45s, and so on. No tail loop fills these gaps. The audio-clock scheduler keeps extending the queue indefinitely and cancels it immediately on input changes or pause. Acceleration and intermediate downshift durations are unchanged.
+
 ## Audio 04
 
 All entry modules now carry the audio4 cache version. The sound menu shows ENGINE SOUND 04. Coast and brake-1 clips receive RMS level correction (peak limited, at most 6x gain), keeping the accepted source ranges and gear durations. Actual Web Audio rendering checks 40 seconds of output, including continuation beyond the scheduling horizon. The original recording remains a local file.

@@ -1,3 +1,7 @@
+## RB22 spin direction and sound spacing
+
+RB22 wheel spin now reverses sign in the player, ghost and shadow renderers so forward travel rotates the tyres forward. Steering and camber remain intact. Sound 05 removes clip amplification, reduces coast/braking levels and introduces increasingly long silent gaps between coast and brake-1 repetitions.
+
 ## Spa runoff and Singapore ground contact
 
 - Spa surface classification now uses the actual asphalt and kerb triangles. Green grass and sand runoff outside those meshes use low grip and strong speed-dependent drag, with slow throttle recovery. Other tracks retain their drag tuning.

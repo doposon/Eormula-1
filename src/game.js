@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=surface2';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=sound5';
 
 export default function startGame(__embeddedAssets) {
 
@@ -452,7 +452,7 @@ function renderCasterShadow(team,x,z,heading,spin,steer,rideHeight){
  else{asset=team==='ferrari'?ferrariCarAsset:team==='mercedes'?mercedesCarAsset:additionalTeamAssets[team];carHeading+=Math.PI;}
  const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack)&&Number.isFinite(rideHeight))?rideHeight:trackGroundY(x,z);
  gl.uniform3f(castLoc.car,x,gy+offset,z);gl.uniform1f(castLoc.heading,carHeading);gl.uniform1f(castLoc.ground,gy);
- gl.uniformMatrix4fv(castLoc.part,false,IDENTITY);gl.uniform1f(castLoc.wheel,0);gl.uniform1f(castLoc.spin,spin);gl.uniform1f(castLoc.steer,steer);
+ gl.uniformMatrix4fv(castLoc.part,false,IDENTITY);gl.uniform1f(castLoc.wheel,0);gl.uniform1f(castLoc.spin,team==='redbull'?-spin:spin);gl.uniform1f(castLoc.steer,steer);
  if(asset&&(asset.batch||asset.batches)){
   const grouped=(team==='mclaren'||asset.wheelCenters)&&asset.batches;
   for(const batch of (asset.batches||[asset.batch])){
@@ -1318,7 +1318,7 @@ function drawSingleCarAt(viewProj,asset,x,y,z,heading,spin=0,steer=0){
   const drawBatch=(batch,tex)=>{
     const group=batch.group||0,center=asset.wheelCenters?.[group]||[0,0,0];
     gl.uniform3fv(carLoc.axis,asset.wheelAxes?.[group]||[0,0,1]);gl.uniform1f(carLoc.group,group);gl.uniform3fv(carLoc.center,center);gl.uniform1f(carLoc.front,group===1||group===2?1:0);
-    gl.uniform1f(carLoc.spin,spin);gl.uniform1f(carLoc.steer,steer);
+    gl.uniform1f(carLoc.spin,asset.team==='redbull'?-spin:spin);gl.uniform1f(carLoc.steer,steer);
     gl.uniform1f(carLoc.wheelLift,activeCarSuspension&&group?activeCarSuspension.wheels[group-1]*.45:0);
     const alphaMode=batch.alphaMode==='BLEND'?2:(batch.alphaMode==='MASK'?1:0);gl.uniform1f(carLoc.alphaMode,alphaMode);gl.uniform1f(carLoc.alphaCutoff,batch.alphaCutoff==null?0.5:batch.alphaCutoff);const factor=batch.baseColorFactor||[1,1,1,1];gl.uniform4f(carLoc.baseColor,factor[0],factor[1],factor[2],factor[3]);if(alphaMode===2){gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);}else{gl.disable(gl.BLEND);gl.depthMask(true);}
     gl.bindTexture(gl.TEXTURE_2D,tex||asset.tex);
@@ -2509,17 +2509,17 @@ loadShanghaiTrack();
 let gameAudioContext,gameAudioEngine;
 const audioControls=document.createElement('div');
 audioControls.className='settings-section';
-audioControls.innerHTML='<label>ENGINE SOUND 04 · 引擎声浪<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">选择实验台用的约 75 秒录音，即可开启声浪</p><label>音量 <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
+audioControls.innerHTML='<label>ENGINE SOUND 05 · 引擎声浪<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">选择实验台用的约 75 秒录音，即可开启声浪</p><label>音量 <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
 const audioSetup=document.createElement('div');audioSetup.id='audioSetup';audioSetup.setAttribute('role','dialog');audioSetup.setAttribute('aria-modal','true');audioSetup.setAttribute('aria-labelledby','audioSetupTitle');
 audioSetup.innerHTML='<div class="audio-setup-card"><h1 id="audioSetupTitle">开启引擎声浪</h1><p>选择你在声浪实验台使用的原视频或音频。读取完成后，点“进入游戏”。</p><div id="audioSetupControls"></div><div class="audio-setup-actions"><button id="audioSetupContinue" disabled>进入游戏</button><button id="audioSetupSkip">暂时跳过</button></div></div>';
 document.body.append(audioSetup);document.getElementById('audioSetupControls').append(audioControls);
 document.getElementById('audioSetupContinue').onclick=document.getElementById('audioSetupSkip').onclick=()=>{audioSetup.hidden=true;document.getElementById('practiceMode').focus();};
-for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE SOUND 04 · 引擎声浪';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
+for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE SOUND 05 · 引擎声浪';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
 const audioInput=document.getElementById('engineAudioFile'),audioStatus=document.getElementById('engineAudioStatus');
 audioInput.onchange=async()=>{const file=audioInput.files[0];if(!file)return;audioInput.disabled=true;
  try{gameAudioContext??=new AudioContext();await gameAudioContext.resume();audioStatus.textContent='正在读取引擎声浪…';
  const decoded=await gameAudioContext.decodeAudioData(await file.arrayBuffer());if(Math.abs(decoded.duration-75.392)>.2)throw Error('请选择实验台用的约 75 秒原录音');
- gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='声浪 04 已载入 · 松油门增强／一挡持续循环';document.getElementById('audioSetupContinue').disabled=false;
+ gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='声浪 05 已载入 · 松油门／一挡间隔逐渐拉长';document.getElementById('audioSetupContinue').disabled=false;
  }catch(error){audioStatus.textContent=error.message||'无法读取音轨，请尝试 MP3 或 M4A';}finally{audioInput.disabled=false;}};
 function updateGameAudio(dt){if(!gameAudioEngine)return;const active=gameStarted&&!gamePaused&&!resumeCountdownActive&&!document.hidden&&audioSetup.hidden;
  if(!gameStarted)gameAudioEngine.reset();

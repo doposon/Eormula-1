@@ -8,7 +8,7 @@ server=ThreadingHTTPServer(('127.0.0.1',0),partial(QuietServer,directory=str(ROO
 threading.Thread(target=server.serve_forever,daemon=True).start()
 source=(ROOT/'src/game.js').read_text().replace('function drawCustomCar(viewProj){', '''window.rbTest=()=>({started:gameStarted,spin:wheelSpin,steer:frontWheelSteer,axes:npcCarAsset?.wheelAxes,centers:npcCarAsset?.wheelCenters,groups:npcCarAsset?.batches.map(b=>b.group)});
 function drawCustomCar(viewProj){''')
-source=source.replace('gl.uniform1f(carLoc.spin,spin);gl.uniform1f(carLoc.steer,steer);\n    gl.uniform1f(carLoc.wheelLift', '''gl.uniform1f(carLoc.spin,spin);gl.uniform1f(carLoc.steer,steer);
+source=source.replace("gl.uniform1f(carLoc.spin,asset.team==='redbull'?-spin:spin);gl.uniform1f(carLoc.steer,steer);\n    gl.uniform1f(carLoc.wheelLift", '''gl.uniform1f(carLoc.spin,asset.team==='redbull'?-spin:spin);gl.uniform1f(carLoc.steer,steer);
     if(asset===npcCarAsset){window.rbDraw??={};window.rbDraw[group]={spin:gl.getUniform(carProg,carLoc.spin),steer:gl.getUniform(carProg,carLoc.steer),front:gl.getUniform(carProg,carLoc.front),axis:Array.from(gl.getUniform(carProg,carLoc.axis)),center:Array.from(gl.getUniform(carProg,carLoc.center))};}
     gl.uniform1f(carLoc.wheelLift''')
 errors=[]
@@ -24,7 +24,7 @@ try:
   page.keyboard.down('w');page.keyboard.down('a');page.wait_for_function('Math.abs(rbTest().spin)>.1 && Math.abs(rbTest().steer)>.03')
   draws=page.evaluate('rbDraw');assert set(draws)=={'0','1','2','3','4'}
   for i in range(1,5):
-   d=draws[str(i)];assert all(abs(a-b)<1e-5 for a,b in zip(d['axis'],data['axes'][i]));assert abs(d['spin'])>.1;assert d['front']==(1 if i<3 else 0);assert all(abs(a-b)<1e-5 for a,b in zip(d['center'],data['centers'][i]))
+   d=draws[str(i)];assert all(abs(a-b)<1e-5 for a,b in zip(d['axis'],data['axes'][i]));assert d['spin']<-.1;assert d['front']==(1 if i<3 else 0);assert all(abs(a-b)<1e-5 for a,b in zip(d['center'],data['centers'][i]))
   page.keyboard.up('w');page.keyboard.up('a');page.keyboard.press('Escape')
   out=ROOT/'test-results';out.mkdir(exist_ok=True);page.screenshot(path=str(out/'rb22-wheels.png'))
   assert not errors,errors
