@@ -6,8 +6,8 @@ const teams = ['redbull','ferrari'];
 const close = (a, b) => assert.ok(Math.abs(a-b) < 1e-9, `${a} != ${b}`);
 const dot = (a,b) => a.reduce((sum,v,i)=>sum+v*b[i],0);
 
-test('V cycles only the four driving views', () => {
-  assert.deepEqual(DRIVING_CAMERAS, ['chase','cockpit','frontwing','rear']);
+test('V cycles through the five driving views', () => {
+  assert.deepEqual(DRIVING_CAMERAS, ['chase','cockpit','halo','frontwing','rear']);
 });
 
 test('all team origins face forward, with the seat below the Halo', () => {
@@ -44,5 +44,18 @@ test('camera remains rigid to the rendered chassis on slopes and road feedback',
 test('other teams keep their existing cockpit camera', () => {
  for (const team of ['mclaren','mercedes','williams','alpine','audi','haas','racingbulls','astonmartin','cadillac']) {
   assert.equal(cockpitCamera(carBodyFrame(team,0,0,0,0,{pitch:0,roll:0})),null);
+ }
+});
+
+test('Halo camera sits above cockpit and follows the same rigid chassis', () => {
+ for (const team of teams) for (const pitch of [-.2,0,.2]) {
+  const frame=carBodyFrame(team,0,35,0,.8,{pitch,roll:.04});
+  const halo=cockpitCamera(frame,'halo'),seat=cockpitCamera(frame);
+  assert.ok(halo.eye[1]>seat.eye[1]+.25);
+  const axes=[[1,0,0],[0,1,0],[0,0,1]].map(v=>bodyDirection(frame,v));
+  const offset=halo.eye.map((v,i)=>v-[frame.x,frame.y,frame.z][i]);
+  close(dot(offset,axes[0]),-.35*frame.sign);
+  close(dot(offset,axes[1]),1.12-frame.originY);
+  assert.ok(halo.near<.1);
  }
 });

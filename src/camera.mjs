@@ -1,6 +1,6 @@
 // Mounts are in the game's metre-scale chassis coordinates, not source GLB units.
 // Forward is always the driving direction, even for models authored facing -X.
-export const DRIVING_CAMERAS = Object.freeze(['chase', 'cockpit', 'frontwing', 'rear']);
+export const DRIVING_CAMERAS = Object.freeze(['chase', 'cockpit', 'halo', 'frontwing', 'rear']);
 
 export function carBodyFrame(team, x, groundY, z, heading, suspension) {
   const sign = team === 'mclaren' || team === 'redbull' ? 1 : -1;
@@ -24,11 +24,13 @@ export function bodyDirection(frame, vector) {
   return [ch * px - sh * rz, ry, sh * px + ch * rz];
 }
 
-export function cockpitCamera(frame) {
-  if (!['redbull', 'ferrari'].includes(frame.team)) return null;
+export function cockpitCamera(frame, mode = 'cockpit') {
+  if (mode !== 'halo' && !['redbull', 'ferrari'].includes(frame.team)) return null;
   // Ahead of the rear roll hoop and below the Halo: the existing steering
   // wheel/dashboard, nose and front tyres remain in the driver's field of view.
-  const mount = { forward: -.10, height: .72, lookDown: 2, fov: 70 };
+  const mount = mode === 'halo'
+    ? { forward: -.35, height: 1.12, lookDown: 8, fov: 75 }
+    : { forward: -.10, height: .72, lookDown: 2, fov: 70 };
   const offset = bodyDirection(frame, [mount.forward * frame.sign, mount.height - frame.originY, 0]);
   const eye = [frame.x + offset[0], frame.y + offset[1], frame.z + offset[2]];
   const angle = mount.lookDown * Math.PI / 180;

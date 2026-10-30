@@ -490,8 +490,8 @@ function renderRealCarShadows(vp){
  gl.useProgram(castProg);gl.uniformMatrix4fv(castLoc.vp,false,vp);gl.uniform3fv(castLoc.sun,sunDirection);
  renderShanghaiBuildingShadow();
  // Player and NPC always share the exact same projection/light direction.
- if(npcGhostActive)renderCasterShadow(selectedNpcTeam,npcX,npcZ,npcHeading,npcWheelSpin,npcFrontWheelSteer,npcRideY);
- renderCasterShadow(selectedPlayerTeam,carX,carZ,carHeading,wheelSpin,frontWheelSteer,playerRideY);
+ if(npcGhostActive)renderCasterShadow(selectedNpcTeam,npcX,npcZ,npcHeading,npcWheelSpin,npcFrontWheelSteer,modelGroundY(selectedNpcTeam,npcRideY));
+ renderCasterShadow(selectedPlayerTeam,carX,carZ,carHeading,wheelSpin,frontWheelSteer,modelGroundY(selectedPlayerTeam,playerRideY));
  // Composite precisely once per pixel; avoid repeated opacity where triangles overlap.
  gl.colorMask(true,true,true,true);gl.stencilMask(0);
  gl.stencilFunc(gl.EQUAL,3,3);gl.stencilOp(gl.KEEP,gl.KEEP,gl.KEEP);
@@ -668,7 +668,7 @@ function spaGroundPose(x,z,heading){
  const riseForward=(hf-hr)/(2*frontSpan),riseLeft=(hl-ht)/(2*sideSpan);
  const pitch=Math.atan(riseForward),roll=Math.atan(riseLeft);
  const rawY=spaPreciseHeightAt(x,z);
- const y=Math.max(planeHeight+.19,rawY+.115);
+ const y=Math.max(planeHeight+.005,rawY+.005);
  return {y,rawY,pitch:Math.max(-.32,Math.min(.32,pitch)),roll:Math.max(-.18,Math.min(.18,roll)),
   gradX:c*riseForward-s*riseLeft,gradZ:s*riseForward+c*riseLeft};
 }
@@ -687,7 +687,7 @@ function filterSpaRide(st,pose,x,z,dt){
   // Larger discontinuities are absorbed over several frames, not stepped through.
   const absorbRate=Math.abs(error)>.030?9.0:16.0;
   st.y=predicted+error*(1-Math.exp(-Math.min(.05,dt)*absorbRate));
-  st.y=Math.max(st.y,pose.rawY+.110);
+  st.y=Math.max(st.y,pose.rawY+.005);
   const poseAlpha=1-Math.exp(-Math.min(.05,dt)*12.0);
   st.pitch+=(pose.pitch-st.pitch)*poseAlpha;
   st.roll+=(pose.roll-st.roll)*poseAlpha;
@@ -1416,9 +1416,10 @@ function updateRideHeights(dt){
  // Small spring-damped road feel on the oval, Shanghai, Silverstone, Spa and Singapore.
  updateRoadFeedback(dt);
 }
+function modelGroundY(team,y){return y-(selectedTrack==='spa'&&team==='redbull'?.075:0);}
 function playerBodyFrame(){
  const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack))?playerRideY+playerVisualSuspension.heave:trackGroundY(carX,carZ);
- return carBodyFrame(selectedPlayerTeam,carX,gy,carZ,carHeading,playerVisualSuspension);
+ return carBodyFrame(selectedPlayerTeam,carX,modelGroundY(selectedPlayerTeam,gy),carZ,carHeading,playerVisualSuspension);
 }
 function drawCustomCar(viewProj){
  activeCarSuspension=playerVisualSuspension;
@@ -1587,7 +1588,7 @@ async function ensureTeamModelReady(team){
 function drawNpcCar(viewProj){
  if(!npcGhostActive)return false;
  activeCarSuspension=npcKerbSusp;
- const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack))?npcRideY+npcKerbSusp.heave:trackGroundY(npcX,npcZ);
+ const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack))?modelGroundY(selectedNpcTeam,npcRideY+npcKerbSusp.heave):trackGroundY(npcX,npcZ);
  if(selectedNpcTeam==='mclaren')return drawGroupedCarAt(viewProj,userCarAsset,npcX,.577+gy,npcZ,npcHeading,npcWheelSpin,npcFrontWheelSteer);
  if(selectedNpcTeam==='ferrari')return drawSingleCarAt(viewProj,ferrariCarAsset,npcX,.5+gy,npcZ,npcHeading+Math.PI);
  if(selectedNpcTeam==='mercedes')return drawSingleCarAt(viewProj,mercedesCarAsset,npcX,.5+gy,npcZ,npcHeading+Math.PI);
@@ -1611,7 +1612,7 @@ let brakeStartSpeedKmh=0; // speed at the start of the current braking applicati
 let tireLocked=false;
 let tireRecovery=0;
 // Smoothed chase-camera state prevents a sudden zoom-out above 200 km/h.
-let chaseBackCurrent=10.5,chaseHeightCurrent=4.7,chaseLookAheadCurrent=5.0,chaseFovCurrent=42;
+let chaseBackCurrent=6.8,chaseHeightCurrent=2.25,chaseLookAheadCurrent=6.0,chaseFovCurrent=50;
 
 // Formula Racing NPC: fixed-line AI until the player's first completed lap, then replay the player's latest lap as a pace ghost.
 const NPC_LANE_OFFSET=2.45, NPC_LANE_RADIUS=R-NPC_LANE_OFFSET;
@@ -2023,12 +2024,27 @@ const IDENTITY=new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
 function carModelMatrix(x,y,z,a){const c=Math.cos(a),s=Math.sin(a);return new Float32Array([c,0,s,0,0,1,0,0,-s,0,c,0,x,y,z,1]);}
 function translationMatrix(x,y,z){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,x,y,z,1]);}
 function rotationZMatrix(a){const c=Math.cos(a),s=Math.sin(a);return new Float32Array([c,s,0,0,-s,c,0,0,0,0,1,0,0,0,0,1]);}
+// HUD gears are a virtual automatic readout; engine/traction physics are unchanged.
+let displayGear=1;
+function updateDrivingHud(kmh){
+ const hud=document.getElementById('drivingHud');hud.hidden=!practiceConfigured;
+ const shifts=[0,72,112,152,192,232,272,312,360];
+ if(kmh<3)displayGear=1;
+ while(displayGear<8&&kmh>shifts[displayGear])displayGear++;
+ while(displayGear>1&&kmh<shifts[displayGear-1]-8)displayGear--;
+ const label=carSpeed<-.15?'R':Math.abs(carSpeed)<.15?'N':String(displayGear);
+ document.getElementById('hudGear').textContent=label;
+ document.getElementById('hudSpeed').textContent=String(Math.round(kmh)).padStart(3,'0');
+ const progress=label==='N'||label==='R'?0:clamp((kmh-shifts[displayGear-1])/(shifts[displayGear]-shifts[displayGear-1]),0,1);
+ document.querySelectorAll('#shiftLights i').forEach((lamp,i)=>lamp.classList.toggle('lit',i<Math.round(progress*12)));
+}
 let activeCarCameraPosition=[0,6,12];
 function draw(now,dt){
  gl.useProgram(prog);
  const dpr=Math.min(window.devicePixelRatio||1,2)*renderResolutionScale,w=Math.max(1,Math.floor(canvas.clientWidth*dpr)),h=Math.max(1,Math.floor(canvas.clientHeight*dpr));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}gl.viewport(0,0,w,h);gl.clearStencil(0);gl.stencilMask(255);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT|gl.STENCIL_BUFFER_BIT);
  const aspect=w/h;let eye,center,cameraUp=[0,1,0],nearPlane=selectedTrack==='silverstone'?.45:.1;
  let currentDisplayKmh=carSpeed<0?Math.abs(carSpeed)*3.6:(Math.abs(carSpeed)/MAX_WORLD_SPEED)*MAX_DASH_SPEED;
+ updateDrivingHud(currentDisplayKmh);
  const speedRatio=clamp(currentDisplayKmh/MAX_DASH_SPEED,0,1);
  let fovDegrees=42;
  if(cameraMode==='chase'){
@@ -2037,27 +2053,36 @@ function draw(now,dt){
    const post200=clamp((currentDisplayKmh-120)/220,0,1);
    const ramp=Math.pow(post200,1.35);
    const brakePush=brakePressure*brakePressure*(3-2*brakePressure);
-   const backTarget=10.5+2.4*ramp-1.65*brakePush;
-   const heightTarget=4.7+0.65*ramp-0.16*brakePush;
-   const lookAheadTarget=5.0+4.0*ramp-1.8*brakePush;
+   const backTarget=6.8+1.8*ramp-.7*brakePush;
+   const heightTarget=2.25+.35*ramp-.08*brakePush;
+   const lookAheadTarget=6.0+3.0*ramp-1.0*brakePush;
    // Ease zoom-out slowly; on braking the camera moves forward more promptly.
    const backRate=brakePressure>0.04?4.8:1.35;
    chaseBackCurrent+=(backTarget-chaseBackCurrent)*(1-Math.exp(-dt*backRate));
    chaseHeightCurrent+=(heightTarget-chaseHeightCurrent)*(1-Math.exp(-dt*2.0));
    chaseLookAheadCurrent+=(lookAheadTarget-chaseLookAheadCurrent)*(1-Math.exp(-dt*(brakePressure>0.04?4.0:1.5)));
-   const fovTarget=42+18*ramp-2.5*brakePush;
+   const fovTarget=50+10*ramp-2.5*brakePush;
    chaseFovCurrent+=(fovTarget-chaseFovCurrent)*(1-Math.exp(-dt*1.65));
    const groundY=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack))?playerRideY:trackGroundY(carX,carZ);
-   eye=[carX-fx*chaseBackCurrent,chaseHeightCurrent+groundY+playerVisualSuspension.heave*.14,carZ-fz*chaseBackCurrent];
+   let cameraBack=chaseBackCurrent;
+   if(trackWallGrids[selectedTrack]){
+     for(let d=1.8;d<=chaseBackCurrent;d+=.4){
+       if(venueWallHit(selectedTrack,carX,carZ,carX-fx*d,carZ-fz*d)){cameraBack=Math.max(1.8,d-.5);break;}
+     }
+   }
+   const slope=selectedTrack==='spa'?Math.tan(playerKerbSusp.pitch):0;
+   const cameraGround=trackGroundY(carX-fx*cameraBack,carZ-fz*cameraBack);
+   const cameraY=Math.max(groundY+chaseHeightCurrent-cameraBack*slope,cameraGround+.55);
+   eye=[carX-fx*cameraBack,cameraY+playerVisualSuspension.heave*.14,carZ-fz*cameraBack];
    center=[carX+fx*chaseLookAheadCurrent,.48+groundY,carZ+fz*chaseLookAheadCurrent];
    fovDegrees=chaseFovCurrent;
- }else if(cameraMode==='cockpit'||cameraMode==='frontwing'||cameraMode==='rear'){
+ }else if(cameraMode==='cockpit'||cameraMode==='halo'||cameraMode==='frontwing'||cameraMode==='rear'){
    const fx=Math.cos(carHeading),fz=Math.sin(carHeading);
    const gy=(['shanghai','silverstone','spa','singapore'].includes(selectedTrack))?playerRideY:trackGroundY(carX,carZ);
    const bump=playerVisualSuspension.heave*.18;
    // World-space mounts: share terrain elevation with the car, not with the orbit camera.
-   if(cameraMode==='cockpit'){
-     const mounted=cockpitCamera(playerBodyFrame());
+   if(cameraMode==='cockpit'||cameraMode==='halo'){
+     const mounted=cockpitCamera(playerBodyFrame(),cameraMode);
      if(mounted){
        eye=mounted.eye;center=mounted.center;cameraUp=mounted.up;
        fovDegrees=mounted.fov;nearPlane=mounted.near;

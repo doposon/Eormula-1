@@ -75,7 +75,7 @@ def main():
                 diff = ImageChops.difference(Image.open(BytesIO(visible)).convert('RGB').crop(roi), Image.open(BytesIO(hidden)).convert('RGB').crop(roi))
                 changed = sum(max(pixel)>25 for pixel in diff.get_flattened_data()) / (diff.width*diff.height)
                 assert changed>.10, f'{team} cockpit contains too little visible body: {changed:.3f}'
-                for mode in ['frontwing','rear','chase','cockpit']:
+                for mode in ['halo','frontwing','rear','chase','cockpit']:
                     page.keyboard.press('v')
                     assert page.locator('.camera-choice.selected').get_attribute('data-view') == mode
                     frame(page)

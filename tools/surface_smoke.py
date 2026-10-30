@@ -37,7 +37,7 @@ try:
      if(Math.abs(contact-y)>1e-3)throw Error('Triangle height mismatch');
      if(track==='spa'){
       maxError=Math.max(maxError,Math.abs(t.old(x,z)-y));
-      const pose=t.pose(x,z,0);if(!Number.isFinite(pose.y)||pose.y<y+.1)throw Error('Spa clipping/invalid pose');
+      const pose=t.pose(x,z,0);if(!Number.isFinite(pose.y)||pose.y<y-.01)throw Error('Spa clipping/invalid pose');
       maxY=Math.max(maxY,Math.abs(y));
      }else{
       // Place the front left tyre at an actual kerb centroid.

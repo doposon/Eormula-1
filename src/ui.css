@@ -21,3 +21,20 @@
 #pauseActions { display:flex; gap:12px; margin-top:24px; flex-wrap:wrap; justify-content:center; }
 #pauseActions[hidden], #pauseBack[hidden] { display:none; }
 #pauseBack { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:10000; }
+
+/* Compact bottom-centre driver instruments. Original telemetry stays available to code. */
+#telemetry { display:none; }
+#drivingHud { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:6; width:228px; padding:9px 16px 8px; border:1px solid #68808c99; border-radius:10px 10px 24px 24px; background:linear-gradient(#101820c9,#03070be8); color:white; pointer-events:none; font-family:Arial,sans-serif; box-shadow:0 5px 24px #0007; }
+#drivingHud[hidden] { display:none; }
+#shiftLights { display:flex; gap:4px; justify-content:center; margin-bottom:4px; }
+#shiftLights i { width:13px; height:5px; border-radius:2px; background:#26332f; }
+#shiftLights i.lit { background:#7bff53; box-shadow:0 0 6px #7bff5380; }
+#shiftLights i.lit:nth-child(n+6) { background:#ffdb49; }
+#shiftLights i.lit:nth-child(n+10) { background:#bca5ff; }
+.dash-values { display:flex; justify-content:space-around; align-items:center; gap:16px; font-variant-numeric:tabular-nums; }
+#hudGear { font-size:46px; line-height:1; min-width:40px; text-align:center; font-style:italic; }
+.dash-side { display:grid; gap:3px; text-align:center; }
+.dash-side span { font-size:12px; color:#b3bfcb; }
+.dash-side small { font-size:9px; letter-spacing:1.4px; color:#b3bfcb; }
+#hudSpeed { font-size:24px; }
+@media(max-width:620px) { #drivingHud { width:190px; bottom:10px; padding:7px 10px; } #hudGear { font-size:36px; } }
