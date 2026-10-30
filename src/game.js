@@ -606,17 +606,20 @@ function addVenueContact(key,kind,positions,indices,scale=1,rotate=false){
   for(let x=minX;x<=maxX;x++)for(let z=minZ;z<=maxZ;z++){const k=x+','+z;let bin=field.bins.get(k);if(!bin)field.bins.set(k,bin=[]);bin.push(tri);}
  }
 }
-function venueContactAt(key,kind,x,z,reference=0){
+function venueContactAt(key,kind,x,z,reference=0,details=false){
  const f=venueContacts[key]?.[kind];if(!f)return null;
  const bin=f.bins.get(Math.floor(x/f.step)+','+Math.floor(z/f.step));if(!bin)return null;
- let best=null;
+ let best=null,bestTriangle=null;
  for(const t of bin){const {a,b,c,det}=t;
   const u=((b[1]-c[1])*(x-c[0])+(c[0]-b[0])*(z-c[1]))/det;
   const v=((c[1]-a[1])*(x-c[0])+(a[0]-c[0])*(z-c[1]))/det,w=1-u-v;
   if(u< -1e-5||v< -1e-5||w< -1e-5)continue;
   const y=u*a[2]+v*b[2]+w*c[2];
-  if(best===null||Math.abs(y-reference)<Math.abs(best-reference))best=y;
+  if(best===null||Math.abs(y-reference)<Math.abs(best-reference)){best=y;bestTriangle=t;}
  }
+ if(details&&bestTriangle){const {a,b,c,det}=bestTriangle;
+  return {height:best,gradX:((a[2]-c[2])*(b[1]-c[1])-(b[2]-c[2])*(a[1]-c[1]))/det,
+   gradZ:((a[0]-c[0])*(b[2]-c[2])-(b[0]-c[0])*(a[2]-c[2]))/det};}
  return best;
 }
 // SURFACE_CONTACT_END
@@ -655,7 +658,18 @@ function spaContinuousHeight(x,z){
 }
 // 2.17.0: chassis height uses a road-plane fit over the wheelbase, rather than
 // reproducing every 1.5 m raster-cell ripple in the car's rigid body.
+// ROAD_ANGLES_BEGIN
+function roadSlopeAngles(gradX,gradZ,heading){
+ const c=Math.cos(heading),s=Math.sin(heading);
+ const forward=gradX*c+gradZ*s,across=-gradX*s+gradZ*c;
+ // carVs applies pitch about Z, then roll about X: positive roll lowers +Z.
+ return {pitch:Math.atan(forward/Math.hypot(1,across)),roll:-Math.atan(across)};
+}
+// ROAD_ANGLES_END
 function spaGroundPose(x,z,heading){
+ const contact=venueContactAt('spa','road',x,z,0,true);
+ if(contact){const angles=roadSlopeAngles(contact.gradX,contact.gradZ,heading);
+  return {y:contact.height+.005,rawY:contact.height,...angles,gradX:contact.gradX,gradZ:contact.gradZ};}
  const c=Math.cos(heading),s=Math.sin(heading),frontSpan=1.7,sideSpan=.92;
  const hc=spaContinuousHeight(x,z);
  const hf=spaContinuousHeight(x+c*frontSpan,z+s*frontSpan);
@@ -666,10 +680,10 @@ function spaGroundPose(x,z,heading){
  // High-frequency imperfections in individual raster cells are absorbed.
  const planeHeight=.36*hc+.17*(hf+hr)+.15*(hl+ht);
  const riseForward=(hf-hr)/(2*frontSpan),riseLeft=(hl-ht)/(2*sideSpan);
- const pitch=Math.atan(riseForward),roll=Math.atan(riseLeft);
+ const {pitch,roll}=roadSlopeAngles(c*riseForward-s*riseLeft,s*riseForward+c*riseLeft,heading);
  const rawY=spaPreciseHeightAt(x,z);
  const y=Math.max(planeHeight+.005,rawY+.005);
- return {y,rawY,pitch:Math.max(-.32,Math.min(.32,pitch)),roll:Math.max(-.18,Math.min(.18,roll)),
+ return {y,rawY,pitch:Math.max(-.32,Math.min(.32,pitch)),roll:Math.max(-.32,Math.min(.32,roll)),
   gradX:c*riseForward-s*riseLeft,gradZ:s*riseForward+c*riseLeft};
 }
 // Predict the broad slope ahead, then filter only the unexpected height error.
@@ -798,13 +812,14 @@ void main(){vec4 w=uImportObject*vec4(aImportPos,1.0);
  vec3 n=normalize(mat3(uImportObject)*aImportNormal);
  vImportLight=.68+.32*max(dot(n,normalize(uImportSun)),0.0);}`;
 const importedFs=`precision mediump float;uniform sampler2D uImportTex;uniform vec4 uImportColor;
-uniform float uImportHasTex;uniform float uImportCutoff;uniform float uImportOpacity;
+uniform float uImportHasTex;uniform float uImportCutoff;uniform float uImportOpacity;uniform float uImportOpaque;
 varying vec2 vImportUV;varying float vImportLight;
 void main(){vec4 c=uImportColor*(uImportHasTex>.5?texture2D(uImportTex,vImportUV):vec4(1.0));
+ if(uImportOpaque>.5)c.a=1.0;
  if(c.a<uImportCutoff)discard;gl_FragColor=vec4(min(c.rgb*vImportLight,vec3(1.)),c.a*uImportOpacity);}`;
 const importedProg=gl.createProgram();gl.attachShader(importedProg,shader(gl.VERTEX_SHADER,importedVs));gl.attachShader(importedProg,shader(gl.FRAGMENT_SHADER,importedFs));gl.linkProgram(importedProg);
 if(!gl.getProgramParameter(importedProg,gl.LINK_STATUS))throw new Error('Imported circuit shader: '+gl.getProgramInfoLog(importedProg));
-const impLoc={p:gl.getAttribLocation(importedProg,'aImportPos'),n:gl.getAttribLocation(importedProg,'aImportNormal'),uv:gl.getAttribLocation(importedProg,'aImportUV'),vp:gl.getUniformLocation(importedProg,'uImportVP'),obj:gl.getUniformLocation(importedProg,'uImportObject'),sun:gl.getUniformLocation(importedProg,'uImportSun'),tex:gl.getUniformLocation(importedProg,'uImportTex'),color:gl.getUniformLocation(importedProg,'uImportColor'),has:gl.getUniformLocation(importedProg,'uImportHasTex'),cut:gl.getUniformLocation(importedProg,'uImportCutoff'),opacity:gl.getUniformLocation(importedProg,'uImportOpacity')};
+const impLoc={p:gl.getAttribLocation(importedProg,'aImportPos'),n:gl.getAttribLocation(importedProg,'aImportNormal'),uv:gl.getAttribLocation(importedProg,'aImportUV'),vp:gl.getUniformLocation(importedProg,'uImportVP'),obj:gl.getUniformLocation(importedProg,'uImportObject'),sun:gl.getUniformLocation(importedProg,'uImportSun'),tex:gl.getUniformLocation(importedProg,'uImportTex'),color:gl.getUniformLocation(importedProg,'uImportColor'),has:gl.getUniformLocation(importedProg,'uImportHasTex'),cut:gl.getUniformLocation(importedProg,'uImportCutoff'),opacity:gl.getUniformLocation(importedProg,'uImportOpacity'),opaque:gl.getUniformLocation(importedProg,'uImportOpaque')};
 const IMP_SPA_MODEL=new Float32Array([1,0,0,0, 0,0,1,0, 0,-1,0,0, 0,0,0,1]); // exported Spa root: x,y,z -> x,-z,y
 // glTF Singapore node: x-axis rotation +90 degrees with a uniform 2.1 scale.
 const IMP_SG_MODEL=new Float32Array([2.1,0,0,0, 0,0,2.1,0, 0,-2.1,0,0, 0,0,0,1]);
@@ -864,7 +879,8 @@ async function loadImportedCircuit(key){
    if(inds&&inds.componentType===5125&&!ext)throw new Error(key+' requires OES_element_index_uint');
    const mat=doc.materials[prim.material]||{},pbr=mat.pbrMetallicRoughness||{},ti=pbr.baseColorTexture;
    const texEntry=ti?doc.textures[ti.index]:null;
-   draws.push({bounds:authoredBounds(doc.accessors[a.POSITION],key==='singapore'?2.1:1),pb:silverstoneBuffer(p.array,gl.ARRAY_BUFFER),nb:normal?silverstoneBuffer(normal.array,gl.ARRAY_BUFFER):null,ub:uv?silverstoneBuffer(uv.array,gl.ARRAY_BUFFER):null,ib:inds?silverstoneBuffer(inds.array,gl.ELEMENT_ARRAY_BUFFER):null,count:inds?inds.count:p.count,indexType:inds?(inds.componentType===5125?gl.UNSIGNED_INT:inds.componentType===5123?gl.UNSIGNED_SHORT:gl.UNSIGNED_BYTE):null,tex:texEntry?imageTex[texEntry.source]:white,useTex:!!texEntry,color:pbr.baseColorFactor||[1,1,1,1],cut:mat.alphaMode==='MASK'?(mat.alphaCutoff||.5):.001,blended:mat.alphaMode==='BLEND',twoSided:!!mat.doubleSided});
+   const forceOpaque=(key==='singapore'&&[178,182,183,184,185,186].includes(prim.material))||(!mat.alphaMode||mat.alphaMode==='OPAQUE');
+   draws.push({bounds:authoredBounds(doc.accessors[a.POSITION],key==='singapore'?2.1:1),pb:silverstoneBuffer(p.array,gl.ARRAY_BUFFER),nb:normal?silverstoneBuffer(normal.array,gl.ARRAY_BUFFER):null,ub:uv?silverstoneBuffer(uv.array,gl.ARRAY_BUFFER):null,ib:inds?silverstoneBuffer(inds.array,gl.ELEMENT_ARRAY_BUFFER):null,count:inds?inds.count:p.count,indexType:inds?(inds.componentType===5125?gl.UNSIGNED_INT:inds.componentType===5123?gl.UNSIGNED_SHORT:gl.UNSIGNED_BYTE):null,tex:texEntry?imageTex[texEntry.source]:white,useTex:!!texEntry,color:pbr.baseColorFactor||[1,1,1,1],material:prim.material,forceOpaque,cut:forceOpaque?0:(mat.alphaMode==='MASK'?(mat.alphaCutoff??.5):.001),blended:!forceOpaque&&mat.alphaMode==='BLEND',twoSided:!!mat.doubleSided});
    }
    // Let the browser update loading status and handle input between batches.
    if(meshIndex%4===0)await new Promise(resolve=>requestAnimationFrame(resolve));
@@ -904,7 +920,7 @@ function renderImportedCircuit(key,vp){
  gl.useProgram(importedProg);gl.uniformMatrix4fv(impLoc.vp,false,vp);gl.uniformMatrix4fv(impLoc.obj,false,asset.transform);gl.uniform3fv(impLoc.sun,sunDirection);gl.uniform1i(impLoc.tex,0);gl.activeTexture(gl.TEXTURE0);
  const drawPart=d=>{
   if(d.twoSided)gl.disable(gl.CULL_FACE);else gl.disable(gl.CULL_FACE); // preserve authored winding under axis changes
-  gl.uniform4fv(impLoc.color,d.color);gl.uniform1f(impLoc.cut,d.cut);gl.uniform1f(impLoc.opacity,1.);
+  gl.uniform4fv(impLoc.color,d.color);gl.uniform1f(impLoc.cut,d.cut);gl.uniform1f(impLoc.opacity,1.);gl.uniform1f(impLoc.opaque,d.forceOpaque?1.:0.);
   gl.uniform1f(impLoc.has,d.useTex?1.:0.);gl.bindTexture(gl.TEXTURE_2D,d.tex);
   gl.bindBuffer(gl.ARRAY_BUFFER,d.pb);gl.enableVertexAttribArray(impLoc.p);gl.vertexAttribPointer(impLoc.p,3,gl.FLOAT,false,0,0);
   if(d.ub){gl.bindBuffer(gl.ARRAY_BUFFER,d.ub);gl.enableVertexAttribArray(impLoc.uv);gl.vertexAttribPointer(impLoc.uv,2,gl.FLOAT,false,0,0);}else{gl.disableVertexAttribArray(impLoc.uv);gl.vertexAttrib2f(impLoc.uv,0,0);}

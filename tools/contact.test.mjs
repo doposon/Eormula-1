@@ -18,3 +18,7 @@ assert.equal(sample('singapore','kerb',21.2,.2,47.54),null);
 add('test','kerb',new Float32Array([20,0,0,20,5,0,20,0,2]),[0,1,2]);
 assert.equal(sample('test','kerb',20,1),null);
 console.log('PASS sloped mesh continuity, spatial bins, imported transforms, kerb floor selection and wall exclusion');
+
+const plane=sample('test','road',8,8,0,true);
+assert.ok(Math.abs(plane.gradX-.25)<1e-9);
+assert.ok(Math.abs(plane.gradZ)<1e-9);
