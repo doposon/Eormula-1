@@ -37,7 +37,7 @@ export function enableOfflineDownload(assets) {
       }
       parts.push(script.slice(last), '\n</script>', after);
       const url = URL.createObjectURL(new Blob(parts, {type:'text/html;charset=utf-8'}));
-      const link = document.createElement('a');link.href=url;link.download='Formula-Racing-2.17.5.html';
+      const link = document.createElement('a');link.href=url;link.download='Formula-Racing-2.17.6.html';
       document.body.appendChild(link);link.click();link.remove();
       setTimeout(()=>URL.revokeObjectURL(url), 60000);
       button.textContent = 'DOWNLOAD OFFLINE HTML';

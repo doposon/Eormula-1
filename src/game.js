@@ -879,8 +879,10 @@ async function loadImportedCircuit(key){
    if(inds&&inds.componentType===5125&&!ext)throw new Error(key+' requires OES_element_index_uint');
    const mat=doc.materials[prim.material]||{},pbr=mat.pbrMetallicRoughness||{},ti=pbr.baseColorTexture;
    const texEntry=ti?doc.textures[ti.index]:null;
-   const forceOpaque=(key==='singapore'&&[178,182,183,184,185,186].includes(prim.material))||(!mat.alphaMode||mat.alphaMode==='OPAQUE');
-   draws.push({bounds:authoredBounds(doc.accessors[a.POSITION],key==='singapore'?2.1:1),pb:silverstoneBuffer(p.array,gl.ARRAY_BUFFER),nb:normal?silverstoneBuffer(normal.array,gl.ARRAY_BUFFER):null,ub:uv?silverstoneBuffer(uv.array,gl.ARRAY_BUFFER):null,ib:inds?silverstoneBuffer(inds.array,gl.ELEMENT_ARRAY_BUFFER):null,count:inds?inds.count:p.count,indexType:inds?(inds.componentType===5125?gl.UNSIGNED_INT:inds.componentType===5123?gl.UNSIGNED_SHORT:gl.UNSIGNED_BYTE):null,tex:texEntry?imageTex[texEntry.source]:white,useTex:!!texEntry,color:pbr.baseColorFactor||[1,1,1,1],material:prim.material,forceOpaque,cut:forceOpaque?0:(mat.alphaMode==='MASK'?(mat.alphaCutoff??.5):.001),blended:!forceOpaque&&mat.alphaMode==='BLEND',twoSided:!!mat.doubleSided});
+   // Singapore material 29 is the bridge deck, distinct from asphalt 182.
+   const tarmac=key==='singapore'&&[29,182].includes(prim.material);
+   const forceOpaque=(key==='singapore'&&[29,178,182,183,184,185,186].includes(prim.material))||(!mat.alphaMode||mat.alphaMode==='OPAQUE');
+   draws.push({bounds:authoredBounds(doc.accessors[a.POSITION],key==='singapore'?2.1:1),pb:silverstoneBuffer(p.array,gl.ARRAY_BUFFER),nb:normal?silverstoneBuffer(normal.array,gl.ARRAY_BUFFER):null,ub:uv?silverstoneBuffer(uv.array,gl.ARRAY_BUFFER):null,ib:inds?silverstoneBuffer(inds.array,gl.ELEMENT_ARRAY_BUFFER):null,count:inds?inds.count:p.count,indexType:inds?(inds.componentType===5125?gl.UNSIGNED_INT:inds.componentType===5123?gl.UNSIGNED_SHORT:gl.UNSIGNED_BYTE):null,tex:texEntry?imageTex[texEntry.source]:white,useTex:!!texEntry,color:tarmac?[.55,.57,.60,1]:(pbr.baseColorFactor||[1,1,1,1]),material:prim.material,forceOpaque,cut:forceOpaque?0:(mat.alphaMode==='MASK'?(mat.alphaCutoff??.5):.001),blended:!forceOpaque&&mat.alphaMode==='BLEND',twoSided:!!mat.doubleSided});
    }
    // Let the browser update loading status and handle input between batches.
    if(meshIndex%4===0)await new Promise(resolve=>requestAnimationFrame(resolve));
