@@ -585,7 +585,43 @@ async function preparePreciseSpaTerrain(){
  spaPreciseTerrainDistance=new Uint8Array(bytes,cells*2,cells);
  console.info('SPA precise road triangle terrain loaded',t.nx,t.nz,'at',t.step,'m resolution');
 }
+// SURFACE_CONTACT_BEGIN
+// Sparse triangle bins in the same world space used by the visible track.
+const venueContacts={};
+function addVenueContact(key,kind,positions,indices,scale=1,rotate=false){
+ const venue=venueContacts[key]||(venueContacts[key]={});
+ const field=venue[kind]||(venue[kind]={bins:new Map(),triangles:[],step:8});
+ const point=i=>{const q=i*3;return [positions[q]*scale,(rotate?positions[q+1]:positions[q+2])*scale,(rotate?-positions[q+2]:positions[q+1])*scale];}; // x,z,height
+ const count=indices?indices.length:positions.length/3;
+ for(let i=0;i+2<count;i+=3){
+  const a=point(indices?indices[i]:i),b=point(indices?indices[i+1]:i+1),c=point(indices?indices[i+2]:i+2);
+  const det=(b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1]);
+  const ux=b[0]-a[0],uz=b[1]-a[1],uy=b[2]-a[2],vx=c[0]-a[0],vz=c[1]-a[1],vy=c[2]-a[2];
+  const normal=Math.hypot(uz*vy-uy*vz,uy*vx-ux*vy,det);
+  if(Math.abs(det)<1e-6||Math.abs(det)/normal<.65)continue; // exclude vertical kerb ends/walls
+  if(key==='singapore'&&Math.abs((a[2]+b[2]+c[2])/3-47.54)>.8)continue;
+  const minX=Math.floor(Math.min(a[0],b[0],c[0])/field.step),maxX=Math.floor(Math.max(a[0],b[0],c[0])/field.step);
+  const minZ=Math.floor(Math.min(a[1],b[1],c[1])/field.step),maxZ=Math.floor(Math.max(a[1],b[1],c[1])/field.step);
+  const tri={a,b,c,det};field.triangles.push(tri);
+  for(let x=minX;x<=maxX;x++)for(let z=minZ;z<=maxZ;z++){const k=x+','+z;let bin=field.bins.get(k);if(!bin)field.bins.set(k,bin=[]);bin.push(tri);}
+ }
+}
+function venueContactAt(key,kind,x,z,reference=0){
+ const f=venueContacts[key]?.[kind];if(!f)return null;
+ const bin=f.bins.get(Math.floor(x/f.step)+','+Math.floor(z/f.step));if(!bin)return null;
+ let best=null;
+ for(const t of bin){const {a,b,c,det}=t;
+  const u=((b[1]-c[1])*(x-c[0])+(c[0]-b[0])*(z-c[1]))/det;
+  const v=((c[1]-a[1])*(x-c[0])+(a[0]-c[0])*(z-c[1]))/det,w=1-u-v;
+  if(u< -1e-5||v< -1e-5||w< -1e-5)continue;
+  const y=u*a[2]+v*b[2]+w*c[2];
+  if(best===null||Math.abs(y-reference)<Math.abs(best-reference))best=y;
+ }
+ return best;
+}
+// SURFACE_CONTACT_END
 function spaPreciseHeightAt(x,z){
+ const mesh=venueContactAt('spa','road',x,z);if(mesh!==null)return mesh;
  if(!spaPreciseTerrainHeight)return -spaField(x,z,false);
  const t=SPA_PRECISE_TERRAIN_META;
  const fx=Math.max(0,Math.min(t.nx-1.001,(x-t.origin[0])/t.step));
@@ -602,6 +638,7 @@ function spaPreciseHeightAt(x,z){
 // Continuous local terrain plane, not a changing maximum of five wheel samples.
 // 4x4 Catmull-Rom reconstruction makes slope continuous between the authored 1.5m cells.
 function spaContinuousHeight(x,z){
+ const mesh=venueContactAt('spa','road',x,z);if(mesh!==null)return mesh;
  if(!spaPreciseTerrainHeight)return spaPreciseHeightAt(x,z);
  const m=SPA_PRECISE_TERRAIN_META,arr=spaPreciseTerrainHeight;
  const fx=Math.max(1,Math.min(m.nx-2.002,(x-m.origin[0])/m.step));
@@ -659,7 +696,6 @@ function filterSpaRide(st,pose,x,z,dt){
  st.gradX=pose.gradX;st.gradZ=pose.gradZ;
  return st;
 }
-function spaChassisGroundAt(x,z,heading){return spaGroundPose(x,z,heading).y;}
 function spaChassisGroundAt(x,z,heading){return spaGroundPose(x,z,heading).y;}
 
 
@@ -823,6 +859,8 @@ async function loadImportedCircuit(key){
    const uv=a.TEXCOORD_0===undefined?null:silverstoneAccessor(doc,bin,a.TEXCOORD_0,false);
    const normal=a.NORMAL===undefined?null:silverstoneAccessor(doc,bin,a.NORMAL,false);
    const inds=prim.indices===undefined?null:silverstoneAccessor(doc,bin,prim.indices,true);
+   if(key==='spa'&&[45,58,59,60,65,81].includes(prim.material))addVenueContact(key,'road',p.array,inds?.array,1,true);
+   if(key==='singapore'&&[185,186].includes(prim.material))addVenueContact(key,'kerb',p.array,inds?.array,2.1,true);
    if(inds&&inds.componentType===5125&&!ext)throw new Error(key+' requires OES_element_index_uint');
    const mat=doc.materials[prim.material]||{},pbr=mat.pbrMetallicRoughness||{},ti=pbr.baseColorTexture;
    const texEntry=ti?doc.textures[ti.index]:null;
@@ -975,6 +1013,7 @@ async function loadSilverstoneTrack(){
    const attrs=prim.attributes,p=silverstoneAccessor(doc,buffers,attrs.POSITION,false),uv=attrs.TEXCOORD_0!==undefined?silverstoneAccessor(doc,buffers,attrs.TEXCOORD_0,false):null;
    const normal=attrs.NORMAL!==undefined?silverstoneAccessor(doc,buffers,attrs.NORMAL,false):null;
    const indices=silverstoneAccessor(doc,buffers,prim.indices,true);
+   if([44,56].includes(prim.material))addVenueContact('silverstone','kerb',p.array,indices.array,1,true);
    if(indices.componentType===5125&&!ext)throw new Error('Browser requires OES_element_index_uint to draw original Silverstone geometry');
    const material=doc.materials[prim.material]||{},pbr=material.pbrMetallicRoughness||{},texInfo=pbr.baseColorTexture;
    const texEntry=texInfo?doc.textures[texInfo.index]:null;
@@ -1284,14 +1323,21 @@ function makeKerbSuspension(){return {heave:0,heaveV:0,roll:0,rollV:0,pitch:0,pi
 const playerKerbSusp=makeKerbSuspension(),npcKerbSusp=makeKerbSuspension();
 function clearKerbSuspension(st){st.heave=st.heaveV=st.roll=st.rollV=st.pitch=st.pitchV=0;st.active=false;st.wheels.fill(0);}
 function updateKerbSuspension(st,x,z,heading,motionKmh,dt){
- if(selectedTrack!=='shanghai'){clearKerbSuspension(st);return;}
- const n=shanghaiNearest(x,z),chassisIndex=n.index;
+ if(!['shanghai','silverstone','singapore'].includes(selectedTrack)){clearKerbSuspension(st);return;}
+ const chassisIndex=selectedTrack==='shanghai'?shanghaiNearest(x,z).index:0;
  const cosine=Math.cos(heading),sine=Math.sin(heading);
  const offsets=[[1.30,-.67],[1.30,.67],[-1.70,-.67],[-1.70,.67]];
  let total=0;
  for(let k=0;k<4;k++){
    const ox=offsets[k][0],oz=offsets[k][1],wx=x+cosine*ox-sine*oz,wz=z+sine*ox+cosine*oz;
-   const target=originalKerbWheelSample(wx,wz,chassisIndex,motionKmh/3.6);
+   let target;
+   if(selectedTrack==='shanghai')target=originalKerbWheelSample(wx,wz,chassisIndex,motionKmh/3.6);
+   else{
+    // Real kerb footprint, sampled per tyre. Road and nearby walls produce no input.
+    const contact=venueContactAt(selectedTrack,'kerb',wx,wz,rideTargetY(wx,wz));
+    const pace=Math.min(1,Math.abs(motionKmh)/90);
+    target=contact===null?0:.046+.009*pace*Math.sin((wx+wz)*2*Math.PI/.65);
+   }
    // Tyre rubber + suspension soften the contact without suddenly snapping up/down.
    const travelAlpha=1-Math.exp(-Math.min(dt,.05)*29);
    st.wheels[k]+=(target-st.wheels[k])*travelAlpha;
@@ -1363,9 +1409,9 @@ function updateRideHeights(dt){
  }
  previousRidePX=carX;previousRidePZ=carZ;previousRideNX=npcX;previousRideNZ=npcZ;
  const playerKmh=Math.abs(carSpeed)/MAX_WORLD_SPEED*MAX_DASH_SPEED;
- if(selectedTrack==='shanghai')updateKerbSuspension(playerKerbSusp,carX,carZ,carHeading,playerKmh,dt);
+ if(['shanghai','silverstone','singapore'].includes(selectedTrack))updateKerbSuspension(playerKerbSusp,carX,carZ,carHeading,playerKmh,dt);
  else if(selectedTrack!=='spa')clearKerbSuspension(playerKerbSusp);
- if(selectedTrack==='shanghai'&&npcGhostActive)updateKerbSuspension(npcKerbSusp,npcX,npcZ,npcHeading,npcSpeedKmh,dt);
+ if(['shanghai','silverstone','singapore'].includes(selectedTrack)&&npcGhostActive)updateKerbSuspension(npcKerbSusp,npcX,npcZ,npcHeading,npcSpeedKmh,dt);
  else if(selectedTrack!=='spa')clearKerbSuspension(npcKerbSusp);
  // Small spring-damped road feel on the oval, Shanghai, Silverstone, Spa and Singapore.
  updateRoadFeedback(dt);
