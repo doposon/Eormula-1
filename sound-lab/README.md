@@ -1,4 +1,8 @@
-# Waveform gear marker lab (Lab 06)
+# Waveform gear marker lab (Lab 06.1)
+
+Update: there are five independent banks: per-gear acceleration, per-gear braking, a single upshift event, a single downshift event and no-throttle coasting. The last three each use one start/end range. Each geared bank supports recordings ending in gear 5, 6 or 7 (default 5). Changing the recorded gear count redistributes the current range and requires recalibration. Missing gears use the gear-5 range repeated at playbackRate 1 for 1.25× (gear 6) or 1.5× (gear 7) duration. Per-gear previews audition these extensions; whole-range playback stays faithful to the original recording.
+
+Exports now use version 5, with `recordedGears`, independent `coast`, `upshift`, `downshift` ranges and explicit `extensions` metadata. Version-4 imports remain supported as seven recorded gears with no single-event/coasting ranges. These are editor markers and previews; the updated behavior has not been wired back into the game.
 
 The main `/sound-lab/` page now loads the waveform editor in `v6/`. Pick a local video/audio recording of any length. The complete decoded waveform uses per-bin minima/maxima across all channels, representing amplitude rather than pitch. Zoom and horizontal scrolling allow fine alignment.
 
