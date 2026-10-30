@@ -18,7 +18,7 @@ try:
   assert page.locator('#clips div').count()==4
   page.locator('#start').click();page.keyboard.down('w');page.wait_for_function('labTest.state().speed>20');page.keyboard.up('w');assert page.evaluate('labTest.state().nodes')==4
   page.evaluate('labTest.meter()');page.wait_for_function('labTest.meter()>.001');page.locator('#high').click();page.wait_for_function('labTest.state().gear===7');page.locator('#stop').click();page.wait_for_function('labTest.meter()<.0001');assert not page.evaluate('labTest.state().playing')
-  page.locator('#clipStart').fill('1');page.locator('#clipLength').fill('.4');page.locator('#apply').click();assert '1.00–1.40' in page.locator('#clips').inner_text()
+  page.locator('#clipStart').fill('1');page.locator('#clipLength').fill('.4');page.locator('#apply').click();assert '1.00–1.40' in page.locator('#clips').inner_text();page.wait_for_function('labTest.state().playing && document.querySelector("#status").textContent.includes("已执行")')
   page.locator('#start').click();page.locator('#preview').click();assert not page.evaluate('labTest.state().playing')
   with page.expect_download() as info:page.locator('#export').click()
   out=ROOT/'test-results/sound-lab';out.mkdir(parents=True,exist_ok=True);info.value.save_as(str(out/'markers.json'))
