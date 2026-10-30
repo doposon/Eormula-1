@@ -34,7 +34,7 @@ try:
   b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
   page=b.new_page(viewport={'width':1280,'height':720});page.set_default_timeout(240000);page.on('pageerror',lambda e:errors.append(str(e)))
   page.route('**/src/game.js',lambda route:route.fulfill(body=s,content_type='application/javascript'))
-  page.goto(f'http://127.0.0.1:{server.server_port}/');page.locator('.asset-loading').wait_for(state='detached');page.locator('#practiceMode').click();page.locator('#selectSingaporeTrack').click();page.locator('#teamScreen:not(.hidden)').wait_for();page.locator('#confirmTeamSelection').click();page.locator('#teamScreen.hidden').wait_for(state='attached');page.locator('#startLights.hidden').wait_for(state='attached')
+  page.goto(f'http://127.0.0.1:{server.server_port}/');page.locator('.asset-loading').wait_for(state='detached');page.locator('#audioSetupSkip').click();page.locator('#practiceMode').click();page.locator('#selectSingaporeTrack').click();page.locator('#teamScreen:not(.hidden)').wait_for();page.locator('#confirmTeamSelection').click();page.locator('#teamScreen.hidden').wait_for(state='attached');page.locator('#startLights.hidden').wait_for(state='attached')
   page.keyboard.press('Escape');page.locator('#pauseTrack').click();result=page.evaluate('bankTest.bridge()');page.wait_for_timeout(250);page.screenshot(path=str(out/'singapore-bridge.png'))
   states=page.evaluate('bankTest.roadTest("zero")');assert states and all(x['opaque'] and not x['blended'] for x in states),states
   page.wait_for_timeout(200);zero=page.screenshot(path=str(out/'bridge-zero-alpha.png'))

@@ -1,6 +1,6 @@
 # Engine sound integration
 
-Settings now includes an ENGINE SOUND file picker and volume control. Select the same approximately 75.392-second video/audio used in the sound lab. The file remains local and is decoded by the browser; the recording is not distributed with the game. Reloading the game requires selecting it again.
+After loading, the game opens an engine sound dialog before race mode selection. Select the same approximately 75.392-second video/audio used in the sound lab, wait for confirmation and click 进入游戏. 暂时跳过 enters without sound. The mode menu and Settings both have an ENGINE SOUND button to reopen the dialog. The file remains local and is decoded by the browser; the recording is not distributed with the game. Reloading the game requires selecting it again.
 
 The four calibrated source ranges are preserved. The stable-window loop builder and mixer from the sound lab are embedded inside `src/game.js` so both offline exporters remain self-contained. Changes to the shared audio algorithm should be mirrored here and verified with the game audio smoke test.
 

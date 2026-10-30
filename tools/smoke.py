@@ -49,7 +49,7 @@ def run_case(p, url, case, results_dir):
         print(f'START {name}', flush=True)
         page.goto(url, wait_until='load')
         page.wait_for_selector('.asset-loading', state='detached')
-        page.locator('#practiceMode').click()
+        page.locator('#audioSetupSkip').click();page.locator('#practiceMode').click()
         page.locator('#select' + track.title() + 'Track').click()
         page.locator('#teamScreen:not(.hidden)').wait_for(timeout=240000)
         print(f'TRACK READY {name}', flush=True)

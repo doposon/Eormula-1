@@ -21,7 +21,7 @@ try:
   page.route('**/src/game.js',lambda route:route.fulfill(body=source,content_type='application/javascript'))
   base=f'http://127.0.0.1:{server.server_port}/'
   page.goto(base);page.locator('.asset-loading').wait_for(state='detached')
-  page.locator('#practiceMode').click();page.locator('#selectOvalTrack').click();page.locator('#playerTeamSelect').select_option('redbull');page.locator('#confirmTeamSelection').click()
+  page.locator('#audioSetupSkip').click();page.locator('#practiceMode').click();page.locator('#selectOvalTrack').click();page.locator('#playerTeamSelect').select_option('redbull');page.locator('#confirmTeamSelection').click()
   page.wait_for_function('window.pauseTest().started')
   page.keyboard.down('w');page.wait_for_timeout(1200);page.keyboard.press('Escape');page.keyboard.up('w')
   page.locator('#pauseQuit').wait_for(state='visible');a=page.evaluate('pauseTest()');assert a['paused']
@@ -43,7 +43,7 @@ try:
   page.close()
   offline=browser.new_page();offline.set_default_timeout(180000);offline.on('pageerror',lambda e:errors.append(str(e)))
   # HTTP transport only; file:// is prohibited by this cloud browser's admin policy.
-  offline.goto(base+'test-results/pause/Formula-Racing-2.17.2.html',wait_until='domcontentloaded');offline.locator('#practiceMode').click();offline.locator('#selectOvalTrack').click();offline.locator('#confirmTeamSelection').click();offline.locator('#teamScreen.hidden').wait_for(state='attached');offline.locator('#startLights.hidden').wait_for(state='attached');offline.keyboard.press('Escape');offline.locator('#pauseQuit').wait_for(state='visible')
+  offline.goto(base+'test-results/pause/Formula-Racing-2.17.2.html',wait_until='domcontentloaded');offline.locator('#audioSetupSkip').click();offline.locator('#practiceMode').click();offline.locator('#selectOvalTrack').click();offline.locator('#confirmTeamSelection').click();offline.locator('#teamScreen.hidden').wait_for(state='attached');offline.locator('#startLights.hidden').wait_for(state='attached');offline.keyboard.press('Escape');offline.locator('#pauseQuit').wait_for(state='visible')
   assert not errors,errors
   print('PASS self-contained HTML download and exported-game pause menu; no JS errors',flush=True)
   browser.close()

@@ -24,7 +24,7 @@ try:
   browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
   page=browser.new_page(viewport={'width':1280,'height':720});page.set_default_timeout(240000);page.on('pageerror',lambda e:errors.append(str(e)))
   page.route('**/src/game.js',lambda route:route.fulfill(body=source,content_type='application/javascript'))
-  page.goto(f'http://127.0.0.1:{server.server_port}/');page.locator('.asset-loading').wait_for(state='detached');page.locator('#practiceMode').click();page.locator('#selectSpaTrack').click();page.locator('#teamScreen:not(.hidden)').wait_for()
+  page.goto(f'http://127.0.0.1:{server.server_port}/');page.locator('.asset-loading').wait_for(state='detached');page.locator('#audioSetupSkip').click();page.locator('#practiceMode').click();page.locator('#selectSpaTrack').click();page.locator('#teamScreen:not(.hidden)').wait_for()
   for team in ['redbull','ferrari']:
    if team=='ferrari':
     page.locator('#pauseQuit').click();page.locator('#selectSpaTrack').click()

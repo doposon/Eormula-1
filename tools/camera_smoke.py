@@ -45,7 +45,7 @@ def main():
             page.route('**/src/game.js', lambda route: route.fulfill(body=source, content_type='application/javascript'))
             page.goto(f'http://127.0.0.1:{server.server_port}/index.html')
             page.wait_for_selector('.asset-loading', state='detached')
-            page.locator('#practiceMode').click()
+            page.locator('#audioSetupSkip').click();page.locator('#practiceMode').click()
             scenarios = [('oval','redbull'),('oval','ferrari'),('shanghai','ferrari'),('silverstone','redbull'),('spa','ferrari'),('singapore','redbull')]
             if args.team:
                 scenarios = [('oval', args.team)]
