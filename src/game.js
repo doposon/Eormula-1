@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=stint8';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=replay9';
 
 export default function startGame(__embeddedAssets) {
 
@@ -1996,7 +1996,7 @@ function getSurfaceAt(x,z){
 // TYRE_WEAR_BEGIN
 const tyreHealth=[100,100,100,100];
 let tyreWearEnabled=true,tyreCompound='medium';
-const TYRE_COMPOUNDS={soft:{name:'软胎 S',grip:1.08,wear:1.35},medium:{name:'中性胎 M',grip:1,wear:1},hard:{name:'硬胎 H',grip:.94,wear:.65},inter:{name:'半雨 I · 干地',grip:.82,wear:1.8},wet:{name:'全雨 W · 干地',grip:.68,wear:2.4}};
+const TYRE_COMPOUNDS={soft:{name:'SOFT · S',grip:1.08,wear:1.35},medium:{name:'MEDIUM · M',grip:1,wear:1},hard:{name:'HARD · H',grip:.94,wear:.65},inter:{name:'INTERMEDIATE · I',grip:.82,wear:1.8},wet:{name:'FULL WET · W',grip:.68,wear:2.4}};
 function tyreGripAt(axle){return TYRE_COMPOUNDS[tyreCompound].grip*(tyreWearEnabled?.25+.75*Math.pow((tyreHealth[axle]+tyreHealth[axle+1])/200,1.3):1);}
 function wearTyres(dt,distance,braking,locked){
  if(!tyreWearEnabled||distance<.0001||dt<=0)return;
@@ -2009,7 +2009,7 @@ function wearTyres(dt,distance,braking,locked){
 }
 function updateTyreHud(){
  const panel=document.getElementById('tyreHud');panel.hidden=!practiceConfigured;
- document.getElementById('tyreMode').textContent=TYRE_COMPOUNDS[tyreCompound].name+(tyreWearEnabled?'':' · 磨损关闭');
+ document.getElementById('tyreMode').textContent=TYRE_COMPOUNDS[tyreCompound].name+(tyreWearEnabled?'':' · WEAR OFF');
  tyreHealth.forEach((v,i)=>{const el=document.getElementById('tyre'+i);el.querySelector('strong').textContent=v.toFixed(1)+'%';el.querySelector('meter').value=v;});
 }
 // TYRE_WEAR_END
@@ -2138,7 +2138,8 @@ function updateDrivingHud(kmh){
  if(kmh<3)displayGear=1;
  while(displayGear<8&&kmh>shifts[displayGear])displayGear++;
  while(displayGear>1&&kmh<shifts[displayGear-1]-8)displayGear--;
- if(gameAudioEngine)displayGear=gameAudioEngine.timeline.gear;
+ if(replayView?.sample)displayGear=replayView.sample.gear||1;else if(gameAudioEngine)displayGear=gameAudioEngine.timeline.gear;
+ document.getElementById('lockupAlert').hidden=!tireLocked;
  const label=carSpeed<-.15?'R':Math.abs(carSpeed)<.15?'N':String(displayGear);
  document.getElementById('hudGear').textContent=label;
  document.getElementById('hudSpeed').textContent=String(Math.round(kmh)).padStart(3,'0');
@@ -2258,6 +2259,7 @@ const START_LIGHT_STEP_SECONDS=0.65, START_LIGHTS_OUT_SECONDS=4.15;
 let practiceConfigured=false;
 let lapLimit=Infinity,sessionFinished=false,resultTimer;
 let timingActive=false, sessionStartedAt=0, lapStartedAt=0, lapTimes=[], lastLapDeltaMs=null, previousLapProgress=null, lastLapCrossAt=0;
+let recordedLaps=[],replayView=null;
 let currentPlayerLapSamples=[],lastPlayerLapSamples=[],npcLapReplay=null,npcReplayStartAt=0,npcReplayDurationMs=0;
 let npcGhostActive=false,bestLapMs=Infinity,bestLapSamples=[],playerLapDistance=0;
 let lastDriveX=null,lastDriveZ=null;
@@ -2282,10 +2284,10 @@ function spawnBestLapGhost(now){
 }
 function showSessionResult(){
  const box=document.getElementById('sessionResult'),total=lapTimes.reduce((a,b)=>a+b,0);
- box.replaceChildren();const title=document.createElement('strong');title.textContent=Number.isFinite(lapLimit)?lapTimes.length+' 圈完成 · '+formatStopwatch(total):'LAP '+lapTimes.length+' · '+formatStopwatch(lapTimes.at(-1));box.append(title);
+ box.replaceChildren();const title=document.createElement('strong');title.textContent=Number.isFinite(lapLimit)?lapTimes.length+' LAPS COMPLETE · '+formatStopwatch(total):'LAP '+lapTimes.length+' · '+formatStopwatch(lapTimes.at(-1));box.append(title);
  const rows=Number.isFinite(lapLimit)?lapTimes:[lapTimes.at(-1)];
  rows.forEach((ms,i)=>{const row=document.createElement('div');row.textContent='LAP '+(Number.isFinite(lapLimit)?i+1:lapTimes.length)+'  '+formatStopwatch(ms);box.append(row);});
- if(Number.isFinite(lapLimit)){const hint=document.createElement('small');hint.textContent='R · 重新计时';box.append(hint);}
+ if(Number.isFinite(lapLimit)){const hint=document.createElement('small');hint.textContent='R · RESTART SESSION';box.append(hint);}
  clearTimeout(resultTimer);box.hidden=false;box.style.animation='none';void box.offsetWidth;box.style.animation='';resultTimer=setTimeout(()=>{box.hidden=true;},2600);
 }
 function finishRecordedPlayerLap(now){
@@ -2295,6 +2297,7 @@ function finishRecordedPlayerLap(now){
  const enough=playerLapDistance>=(MIN_GHOST_LAP_DISTANCE[selectedTrack]||100)&&ms>8000;
  if(enough){
   const samples=currentPlayerLapSamples.slice();samples.push(makePlayerLapSample(ms));
+  recordedLaps.push({duration:ms,samples});
   if(samples.length>=3 && ms<bestLapMs){
    bestLapMs=ms;bestLapSamples=samples;
    spawnBestLapGhost(now);
@@ -2315,16 +2318,18 @@ pauseOverlay.style.cssText='position:fixed;inset:0;z-index:9999;display:none;ali
 pauseOverlay.innerHTML='<div style="padding:30px 48px;border:1px solid #48606e;border-radius:18px;background:rgba(8,18,27,.96);box-shadow:0 18px 70px #0008"><div id="pauseTitle" style="font-size:38px;font-weight:900;letter-spacing:4px">PAUSED</div><div id="pauseSubtitle" style="margin-top:12px;font-size:14px;letter-spacing:1px;color:#9feaf0">Press SPACE to resume</div></div>';
 pauseOverlay.id='pauseOverlay';
 const pauseActions=document.createElement('div');pauseActions.id='pauseActions';
-pauseActions.innerHTML='<button id="pauseQuit">QUIT</button><button id="pauseTrack">VIEW TRACK</button><button id="pauseSettings">SETTINGS</button>';
+pauseActions.innerHTML='<button id="pauseQuit">QUIT</button><button id="pauseTrack">VIEW TRACK</button><button id="pauseSettings">SETTINGS</button><button id="pauseReplay">REPLAY</button>';
 pauseOverlay.firstElementChild.appendChild(pauseActions);
 document.body.appendChild(pauseOverlay);
 let pausePage='menu',pauseCameraMode='chase';
 const pauseBack=document.createElement('button');pauseBack.id='pauseBack';pauseBack.textContent='BACK TO PAUSE MENU · ESC';pauseBack.hidden=true;document.body.appendChild(pauseBack);
 function showPauseMenu(){
+ closeReplay();
  pausePage='menu';pauseBack.hidden=true;closeSettings();cameraMode=pauseCameraMode;syncCameraChoice();
  showPauseOverlay('PAUSED','ESC / SPACE · resume with a 3-second countdown');
 }
 function resumePractice(){
+ closeReplay();
  pauseBack.hidden=true;closeSettings();cameraMode=pauseCameraMode;syncCameraChoice();
  resumeCountdownActive=true;resumeCountdownStartedAt=performance.now();
  showPauseOverlay('RESUMING IN 3','Wait for the 3-second countdown');
@@ -2340,9 +2345,39 @@ document.getElementById('pauseQuit').addEventListener('click',()=>{
 });
 function showPauseOverlay(title,subtitle){document.getElementById('pauseTitle').textContent=title;document.getElementById('pauseSubtitle').textContent=subtitle;pauseActions.hidden=resumeCountdownActive;pauseOverlay.style.display='flex';}
 function hidePauseOverlay(){pauseOverlay.style.display='none';}
+const replayPanel=document.createElement('div');replayPanel.id='replayPanel';replayPanel.hidden=true;
+replayPanel.innerHTML='<strong>LAP REPLAY</strong><select id="replayLap" aria-label="Recorded lap"></select><span id="replayEmpty">Complete a lap to unlock replay.</span><button id="replayPlay">PAUSE</button><button id="replayRestart">RESTART</button><select id="replayCamera" aria-label="Replay camera"><option value="chase">Chase</option><option value="cockpit">Cockpit</option><option value="halo">Halo / T-Cam</option><option value="frontwing">Front Wing</option><option value="rear">Rear View</option><option value="orbit">Orbit Car</option><option value="track">Track Overview</option></select><input id="replaySeek" type="range" min="0" max="1000" value="0" aria-label="Replay position"><span id="replayTime"></span><small>Drag to orbit · Scroll to zoom · Esc to return</small>';
+document.body.append(replayPanel);
+function closeReplay(){if(replayView){yaw=replayView.savedYaw;pitch=replayView.savedPitch;distance=replayView.savedDistance;}replayView=null;replayPanel.hidden=true;}
+function chooseReplayLap(){if(!recordedLaps.length)return;const lap=recordedLaps[Number(document.getElementById('replayLap').value)||0];replayView={lap,time:0,playing:true,last:performance.now(),savedYaw:replayView?.savedYaw??yaw,savedPitch:replayView?.savedPitch??pitch,savedDistance:replayView?.savedDistance??distance};document.getElementById('replayPlay').textContent='PAUSE';}
+document.getElementById('pauseReplay').onclick=()=>{
+ pausePage='replay';hidePauseOverlay();pauseBack.hidden=false;replayPanel.hidden=false;closeSettings();
+ const select=document.getElementById('replayLap');select.replaceChildren();recordedLaps.forEach((lap,i)=>{const option=document.createElement('option');option.value=i;option.textContent='LAP '+(i+1)+' · '+formatStopwatch(lap.duration);select.append(option);});
+ document.getElementById('replayEmpty').hidden=!!recordedLaps.length;
+ for(const id of ['replayLap','replayPlay','replayRestart','replaySeek','replayCamera'])document.getElementById(id).disabled=!recordedLaps.length;
+ chooseReplayLap();document.getElementById('replayCamera').value='chase';setCameraView('chase');
+};
+document.getElementById('replayLap').onchange=chooseReplayLap;
+document.getElementById('replayPlay').onclick=()=>{if(!replayView)return;replayView.playing=!replayView.playing;replayView.last=performance.now();document.getElementById('replayPlay').textContent=replayView.playing?'PAUSE':'PLAY';};
+document.getElementById('replayRestart').onclick=chooseReplayLap;
+document.getElementById('replaySeek').oninput=e=>{if(replayView){replayView.time=Number(e.target.value)/1000*replayView.lap.duration;replayView.last=performance.now();}};
+document.getElementById('replayCamera').onchange=e=>setCameraView(e.target.value);
+function drawReplayFrame(now,dt){
+ if(!replayView){draw(now,dt);return;}
+ const r=replayView;if(r.playing)r.time=Math.min(r.lap.duration,r.time+Math.max(0,now-r.last));r.last=now;
+ if(r.time>=r.lap.duration){r.playing=false;document.getElementById('replayPlay').textContent='PLAY';}
+ const samples=r.lap.samples;let lo=0,hi=samples.length-1;while(lo+1<hi){const m=(lo+hi)>>1;if(samples[m].t<=r.time)lo=m;else hi=m;}
+ const a=samples[lo],b=samples[hi]||a,u=Math.max(0,Math.min(1,(r.time-a.t)/Math.max(1,b.t-a.t))),mix=k=>(a[k]||0)+((b[k]||0)-(a[k]||0))*u;
+ r.sample=a;document.getElementById('replaySeek').value=String(r.time/r.lap.duration*1000);document.getElementById('replayTime').textContent=formatStopwatch(r.time)+' / '+formatStopwatch(r.lap.duration);
+ const saved={carX,carZ,carHeading,travelHeading,carSpeed,playerRideY,wheelSpin,frontWheelSteer,tireLocked,npcGhostActive,displayGear,health:[...tyreHealth],suspension:{...playerVisualSuspension}};
+ try{
+  carX=mix('x');carZ=mix('z');carHeading=lerpAngle(a.heading,b.heading,u);travelHeading=carHeading;carSpeed=mix('speed');playerRideY=mix('rideY');wheelSpin=a.wheelSpin+(a.locked?0:Math.sign(a.speed||0)*(a.speedKmh||0)/3.6/.3*(r.time-a.t)/1000);frontWheelSteer=mix('frontWheelSteer');tireLocked=!!a.locked;npcGhostActive=false;
+  if(a.tyres)tyreHealth.splice(0,4,...a.tyres);if(a.suspension)Object.assign(playerVisualSuspension,a.suspension);draw(now,dt);
+ }finally{({carX,carZ,carHeading,travelHeading,carSpeed,playerRideY,wheelSpin,frontWheelSteer,tireLocked,npcGhostActive,displayGear}=saved);tyreHealth.splice(0,4,...saved.health);Object.assign(playerVisualSuspension,saved.suspension);}
+}
 function makePlayerLapSample(t){
  const kmh=carSpeed<0?Math.abs(carSpeed)*3.6:(Math.abs(carSpeed)/MAX_WORLD_SPEED)*MAX_DASH_SPEED;
- return {t,x:carX,z:carZ,heading:carHeading,travelHeading,wheelSpin,frontWheelSteer,speedKmh:kmh};
+ return {t,speed:carSpeed,rideY:playerRideY,gear:displayGear,locked:tireLocked,tyres:[...tyreHealth],suspension:{...playerVisualSuspension,wheels:[...playerVisualSuspension.wheels]},x:carX,z:carZ,heading:carHeading,travelHeading,wheelSpin,frontWheelSteer,speedKmh:kmh};
 }
 function setLightCount(count){document.querySelectorAll('#startLights .light-lamp').forEach((lamp,i)=>lamp.classList.toggle('lit',i<count));}
 function formatStopwatch(ms){
@@ -2350,6 +2385,7 @@ function formatStopwatch(ms){
  return String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0')+'.'+String(millis).padStart(3,'0');
 }
 function clearPracticeTiming(){
+ closeReplay();recordedLaps=[];
  sessionFinished=false;clearTimeout(resultTimer);document.getElementById('sessionResult').hidden=true;
  timingActive=false;sessionStartedAt=0;lapStartedAt=0;lapTimes=[];lastLapDeltaMs=null;previousLapProgress=null;lastLapCrossAt=0;singaporePreviousTimingPosition=null;spaPreviousTimingPosition=null;silverstonePreviousTimingPosition=null;
  // Reset every transient effect and the recorded lap ghost along with the lap-time table.
@@ -2561,18 +2597,18 @@ loadShanghaiTrack();
 let gameAudioContext,gameAudioEngine;
 const audioControls=document.createElement('div');
 audioControls.className='settings-section';
-audioControls.innerHTML='<label>ENGINE SOUND 06 · 引擎声浪<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">选择实验台用的约 75 秒录音，即可开启声浪</p><label>音量 <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
+audioControls.innerHTML='<label>ENGINE AUDIO<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">Load the original 75-second Audio Lab recording to enable engine audio.</p><label>Volume <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
 const audioSetup=document.createElement('div');audioSetup.id='audioSetup';audioSetup.setAttribute('role','dialog');audioSetup.setAttribute('aria-modal','true');audioSetup.setAttribute('aria-labelledby','audioSetupTitle');
-audioSetup.innerHTML='<div class="audio-setup-card"><h1 id="audioSetupTitle">开启引擎声浪</h1><p>选择你在声浪实验台使用的原视频或音频。读取完成后，点“进入游戏”。</p><div id="audioSetupControls"></div><div class="audio-setup-actions"><button id="audioSetupContinue" disabled>进入游戏</button><button id="audioSetupSkip">暂时跳过</button></div></div>';
+audioSetup.innerHTML='<div class="audio-setup-card"><h1 id="audioSetupTitle">Engine Audio Setup</h1><p>Select the original video or audio used in Audio Lab, then choose Continue.</p><div id="audioSetupControls"></div><div class="audio-setup-actions"><button id="audioSetupContinue" disabled>Continue</button><button id="audioSetupSkip">Skip for Now</button></div></div>';
 document.body.append(audioSetup);document.getElementById('audioSetupControls').append(audioControls);
 document.getElementById('audioSetupContinue').onclick=document.getElementById('audioSetupSkip').onclick=()=>{audioSetup.hidden=true;document.getElementById('practiceMode').focus();};
-for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE SOUND 06 · 引擎声浪';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
+for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE AUDIO';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
 const audioInput=document.getElementById('engineAudioFile'),audioStatus=document.getElementById('engineAudioStatus');
 audioInput.onchange=async()=>{const file=audioInput.files[0];if(!file)return;audioInput.disabled=true;
- try{gameAudioContext??=new AudioContext();await gameAudioContext.resume();audioStatus.textContent='正在读取引擎声浪…';
- const decoded=await gameAudioContext.decodeAudioData(await file.arrayBuffer());if(Math.abs(decoded.duration-75.392)>.2)throw Error('请选择实验台用的约 75 秒原录音');
- gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='声浪 06 已载入 · 松油门／一挡间隔逐渐拉长';document.getElementById('audioSetupContinue').disabled=false;
- }catch(error){audioStatus.textContent=error.message||'无法读取音轨，请尝试 MP3 或 M4A';}finally{audioInput.disabled=false;}};
+ try{gameAudioContext??=new AudioContext();await gameAudioContext.resume();audioStatus.textContent='Loading engine audio…';
+ const decoded=await gameAudioContext.decodeAudioData(await file.arrayBuffer());if(Math.abs(decoded.duration-75.392)>.2)throw Error('Select the original 75-second Audio Lab recording.');
+ gameAudioEngine?.dispose();gameAudioEngine=new MarkedAudio(gameAudioContext,decoded,APPROVED_AUDIO.banks);audioStatus.textContent='Engine audio ready · coast and first-gear replay intervals enabled';document.getElementById('audioSetupContinue').disabled=false;
+ }catch(error){audioStatus.textContent=error.message||'Unable to decode audio. Try an MP3 or M4A file.';}finally{audioInput.disabled=false;}};
 function updateGameAudio(dt){if(!gameAudioEngine)return;const active=gameStarted&&!gamePaused&&!resumeCountdownActive&&!document.hidden&&audioSetup.hidden;
  if(!gameStarted)gameAudioEngine.reset();
  gameAudioEngine.update({active,throttle:!!(keys.w||keys.arrowup),brake:!!(keys.s||keys.arrowdown),auto:true,volume:Number(document.getElementById('engineAudioVolume').value)});
@@ -2581,7 +2617,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&gameAudioE
 document.getElementById('resetCar').addEventListener('click',()=>gameAudioEngine?.reset());
 window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r'&&practiceConfigured&&!gamePaused&&!resumeCountdownActive)gameAudioEngine?.reset();});
 
-let previous=performance.now();function loop(t){const dt=Math.min(.04,Math.max(0,(t-previous)/1000));previous=t;updateStartLights(t);updateResumeCountdown(t);if(gameStarted&&!gamePaused&&!resumeCountdownActive){update(dt);samplePlayerForGhost(t);updateNpc(dt);updateRideHeights(dt);}updateGameAudio(dt);draw(t,dt);updateFrameRateMeter(t);}requestAnimationFrame(loop);
+let previous=performance.now();function loop(t){const dt=Math.min(.04,Math.max(0,(t-previous)/1000));previous=t;updateStartLights(t);updateResumeCountdown(t);if(gameStarted&&!gamePaused&&!resumeCountdownActive){update(dt);samplePlayerForGhost(t);updateNpc(dt);updateRideHeights(dt);}updateGameAudio(dt);drawReplayFrame(t,dt);updateFrameRateMeter(t);}requestAnimationFrame(loop);
 
  const settingsToggle=document.getElementById('settingsToggle'),settingsPanel=document.getElementById('settingsPanel');
  function closeSettings(){settingsPanel.hidden=true;settingsToggle.setAttribute('aria-expanded','false');}
@@ -2639,7 +2675,7 @@ function updateFrameRateMeter(t){
 }
 document.getElementById('renderQuality').addEventListener('click',cycleRenderResolution);
 document.getElementById('resetCar').addEventListener('click',resetPracticeGrid);
-canvas.addEventListener('pointerdown',e=>{if(cameraMode==='chase')resetOrbit();drag=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointerdown',e=>{if(cameraMode==='chase'||replayView&&cameraMode!=='track'&&cameraMode!=='orbit')resetOrbit();drag=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId)});
 canvas.addEventListener('pointermove',e=>{if(!drag)return;yaw-=(e.clientX-lastX)*.006;pitch=Math.max(.12,Math.min(1.5,pitch+(e.clientY-lastY)*.005));lastX=e.clientX;lastY=e.clientY});
 canvas.addEventListener('pointerup',()=>drag=false);canvas.addEventListener('pointercancel',()=>drag=false);
 canvas.addEventListener('wheel',e=>{e.preventDefault();if(cameraMode==='chase'){/* chase distance remains stable for consistent driving */}else distance=Math.max(4.5,Math.min((['silverstone','shanghai','spa','singapore'].includes(selectedTrack))?8500:260,distance*Math.exp(e.deltaY*.001)))},{passive:false});

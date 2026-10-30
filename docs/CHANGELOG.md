@@ -1,3 +1,7 @@
+## English game UI, lock-up alert and per-lap replay
+
+All game interface text now uses English motorsport terminology. A LOCK-UP alert appears next to the gear indicator. The pause menu offers replay of every valid completed lap in the current session, with lap selection, play/pause, restart, scrubbing, five driving cameras, Orbit Car and Track Overview. Dragging switches mounted replay views to orbit, and the mouse wheel zooms. Rendering temporarily uses recorded car/suspension/tyre state and restores live state after every frame; physics, timing and wear stay paused. Session reset clears the lap archive.
+
 ## Tyre compounds and timed stints
 
 Pre-drive selection now offers soft/medium/hard/intermediate/wet tyres and 1–5 or unlimited laps. Compound grip and wear are tuned for the current dry surface; wet-weather performance is not simulated yet. Base road wear is quartered, grass reduced to 0.008 points/metre and front lockup to 4 points/second before compound multipliers. Each valid lap remains in the history. Finite stints show summed lap time and individual laps for about two seconds then fade, freeze timing at the target, and restart with R. Unlimited sessions keep recording and show each lap result.

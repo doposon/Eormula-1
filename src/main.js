@@ -1,5 +1,5 @@
-import startGame from './game.js?v=stint8';
-import { enableOfflineDownload } from './offline.js?v=stint8';
+import startGame from './game.js?v=replay9';
+import { enableOfflineDownload } from './offline.js?v=replay9';
 
 // Keep the original decoders and driving code intact. Binary files contain
 // exactly the bytes formerly embedded as base64 strings, including compression.
