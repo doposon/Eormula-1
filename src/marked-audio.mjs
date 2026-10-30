@@ -7,7 +7,7 @@ export const APPROVED_AUDIO = {
  }
 };
 export function markedSegment(banks,state,gear){const b=banks[state];if(!b?.nodes)return null;const coast=state==='coast',source=coast?1:gear>b.count?5:gear,i=coast?0:state==='braking'?b.count-source:source-1;const start=b.nodes[i],end=b.nodes[i+1];return {start,end,duration:(end-start)*(!coast&&gear>b.count?(gear===6?1.25:1.5):1)};}
-// Repeat 1 starts after 0.15 s silence, repeat 2 after 0.30 s, etc.
+// Replay spacing grows by 0.15 s each time; the tail sustains between replays.
 export function brakeRepeatStart(index,duration){return index*duration+.075*index*(index+1);}
 // Shared by the lab and game. Vehicle speed never drives this clock.
 export class MarkedTimeline {
@@ -35,7 +35,7 @@ export class MarkedAudio {
  update({active,throttle=false,brake=false,auto=true,volume=.4}){const now=this.ctx.currentTime,dt=this.active&&this.lastTime!==null?now-this.lastTime:0;this.lastTime=now;this.active=active;
   if(!active){this.master.gain.cancelScheduledValues(now);this.master.gain.setValueAtTime(0,now);this.stopNode();this.plan=null;return;}
   this.timeline.tick(dt,throttle,brake,auto);const t=this.timeline;
-  this.master.gain.setTargetAtTime(volume*.8*(t.phase==='coast'?Math.exp(-t.elapsed/6):1),now,.03);
+  this.master.gain.setTargetAtTime(volume*.8*(t.phase==='coast'?(.3+.7*Math.exp(-t.elapsed/6)):1),now,.03);
   const plan=`${t.intent}:${auto}:${t.manualRevision}`;if(this.plan===plan){this.scheduleBrakeRepeats(now);return;}this.stopNode();this.plan=plan;if(t.phase==='silent')return;
   // Schedule all subsequent boundaries on the audio clock, even if a heavy
   // track stalls rendering. The visual timeline catches up without skipping audio.
@@ -49,6 +49,6 @@ export class MarkedAudio {
  scheduleBrakeRepeats(now){const p=this.brakePlan;if(!p)return;const d=p.spec.duration;
   // Jump past old repeats after a long pause without changing gap progression.
   p.index=Math.max(p.index,Math.max(0,Math.floor((-(d+.075)+Math.sqrt((d+.075)**2+.3*Math.max(0,now-p.base)))/.15)));
-  while(true){const start=p.base+brakeRepeatStart(p.index,d);if(start>now+30)break;p.index++;const end=start+d;if(end<=now)continue;const n=this.ctx.createBufferSource(),at=Math.max(now,start);n.buffer=this.buffer;n.playbackRate.value=1;n.connect(this.master);n.start(at,p.spec.start+at-start,end-at);this.nodes.push(n);this.node??=n;n.onended=()=>{n.disconnect();this.nodes=this.nodes.filter(x=>x!==n);};}
+  while(true){const start=p.base+brakeRepeatStart(p.index,d);if(start>now+30)break;p.index++;const end=p.base+brakeRepeatStart(p.index,d);if(end<=now)continue;const n=this.ctx.createBufferSource(),at=Math.max(now,start);n.buffer=this.buffer;n.playbackRate.value=1;n.connect(this.master);const tail=Math.min(.2,d),elapsed=at-start;n.loop=true;n.loopStart=p.spec.end-tail;n.loopEnd=p.spec.end;const offset=elapsed<d?p.spec.start+elapsed:n.loopStart+(elapsed-d)%tail;n.start(at,offset);n.stop(end);this.nodes.push(n);this.node??=n;n.onended=()=>{n.disconnect();this.nodes=this.nodes.filter(x=>x!==n);};}
  }
 }

@@ -1,5 +1,5 @@
 import {loopBuffer} from '../engine.js?v=layout1';
-import {MarkedAudio,APPROVED_AUDIO,markedSegment} from '../../src/marked-audio.mjs?v=accepted2';
+import {MarkedAudio,APPROVED_AUDIO,markedSegment} from '../../src/marked-audio.mjs?v=continuous3';
 let driver=null;
 const $=id=>document.getElementById(id),media=$('original');let ctx,buffer,url,peaks=[],sourceName='',applied=null,running=false,current=null,preview=null,gain;
 const input={throttle:0,brake:0,left:0,right:0};let gear=1,rpm=5500,speed=0;

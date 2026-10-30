@@ -1,3 +1,7 @@
+## Continuous sound update
+
+Coasting now fades to 30% of its starting level, rather than silence. Brake gear 1 retains progressively spaced replays but sustains the last 0.2 seconds between them. Automatic gear durations are unchanged.
+
 # Engine sound integration
 
 After loading, the game opens an engine sound dialog before race mode selection. Select the same approximately 75.392-second video/audio used in the sound lab, wait for confirmation and click 进入游戏. 暂时跳过 enters without sound. The mode menu and Settings both have an ENGINE SOUND button to reopen the dialog. The file remains local and is decoded by the browser; the recording is not distributed with the game. Reloading the game requires selecting it again.
