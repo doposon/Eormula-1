@@ -1,6 +1,6 @@
-import { createLoadingScreen } from './loading-screen.js?v=audio13';
-import startGame from './game.js?v=audio13';
-import { enableOfflineDownload } from './offline.js?v=audio13';
+import { createLoadingScreen } from './loading-screen.js?v=media14';
+import startGame from './game.js?v=media14';
+import { enableOfflineDownload } from './offline.js?v=media14';
 
 // Keep the original decoders and driving code intact. Binary files contain
 // exactly the bytes formerly embedded as base64 strings, including compression.
@@ -17,7 +17,7 @@ export function encodeBase64(bytes) {
 const overlay = document.createElement('div');
 document.body.append(overlay);
 const splash=document.getElementById('studioSplash');
-if(splash){await Promise.race([splash.querySelector('img').decode().catch(()=>{}),new Promise(r=>setTimeout(r,3000))]);await new Promise(r=>setTimeout(r,1500));splash.remove();}
+splash?.remove();
 const story=await createLoadingScreen(overlay,new URL('../assets/loading/',import.meta.url));
 const label={set textContent(value){const counter=value.match(/(\d+) \/ (\d+)/);if(counter)story.update(Number(counter[1]),Number(counter[2]),counter[0]+' FILES');else{const status=overlay.querySelector('[role="status"]');status.textContent=value;}},setAttribute(name,value){overlay.setAttribute(name,value);}};
 story.update(0,28);

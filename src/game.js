@@ -2703,12 +2703,12 @@ async function restoreEngineAudio(){
   let bytes;
   if(__embeddedAssets?.engineAudio){const raw=atob(__embeddedAssets.engineAudio);bytes=Uint8Array.from(raw,c=>c.charCodeAt(0)).buffer;}
   else{
-   try{const response=await fetch('assets/engine-source.mp3');if(!response.ok)throw Error('No bundled recording');bytes=await response.arrayBuffer();}
+   try{const response=await fetch('assets/engine-source.mp3?v=media14');if(!response.ok)throw Error('No bundled recording');bytes=await response.arrayBuffer();}
    catch{bytes=await engineStore('readonly',store=>store.get('original'));if(!bytes)throw Error('No saved recording');}
   }
   // An explicit user upload wins over a slow background restore.
   if(!gameAudioEngine){await installEngineAudio(bytes);audioSetup.hidden=true;}
- }catch{if(!gameAudioEngine){audioSetup.hidden=false;audioStatus.textContent='Automatic audio loading failed. Select a recording or skip to continue.';}}
+ }catch{if(!gameAudioEngine){audioStatus.textContent='Audio download failed. Open ENGINE AUDIO to select a recording, or reload to retry.';}}
 }
 restoreEngineAudio();
 // Browsers require a user gesture to start Web Audio, even for bundled recordings.

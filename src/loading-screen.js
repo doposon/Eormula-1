@@ -1,4 +1,5 @@
 const cards = [
+ ['studio','JS Studio',''],
  ['01-alonso','Fernando Alonso','Behind the memes, Fernando Alonso is a two-time F1 World Champion.'],
  ['02-raikkonen','Kimi Räikkönen','They call him “The Iceman.” Kimi Räikkönen became World Champion in 2007—by just one point.'],
  ['03-vettel','Sebastian Vettel','Sebastian Vettel became F1’s youngest World Champion at just 23 years old.'],
@@ -27,7 +28,7 @@ export async function createLoadingScreen(root, imageRoot) {
  function load(target){
   if(!cache.has(target)){
    const [file,name]=cards[target],img=new Image();img.className='loading-story-image';img.alt=name;
-   img.src=new URL(file+'.png',imageRoot).href;
+   img.src=new URL(file+'.png?v=media14',imageRoot).href;
    const ready=img.decode().then(()=>img).catch(error=>{cache.delete(target);throw error;});cache.set(target,ready);
   }
   return cache.get(target);
@@ -36,7 +37,7 @@ export async function createLoadingScreen(root, imageRoot) {
   const target=index,token=++request;
   try{const img=await load(target);if(disposed||token!==request)return;
    // Replace both in the same task, only after all image pixels are decoded.
-   visual.replaceChildren(img);text.textContent=cards[target][2];
+   visual.replaceChildren(img);text.textContent=cards[target][2];root.classList.toggle('studio-card',target===0);
    hint.textContent='CLICK FOR ANOTHER F1 FACT';
    load((target+1)%cards.length).catch(()=>{});
   }catch{if(token===request&&!disposed)hint.textContent='PHOTO COULD NOT LOAD · CLICK TO CONTINUE';}
