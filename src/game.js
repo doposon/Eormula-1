@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=replay16';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=rainwall17';
 
 export default function startGame(__embeddedAssets) {
 document.getElementById("studioSplash")?.remove();
@@ -181,11 +181,38 @@ const rainLoc={drop:gl.getAttribLocation(rainProg,'aDrop'),vp:gl.getUniformLocat
 const rainBuffer=gl.createBuffer(),rainData=new Float32Array(1600*8);
 for(let i=0;i<1600;i++){const x=Math.random()*70-35,y=Math.random()*32,z=Math.random()*70-35;rainData.set([x,y,z,0,x,y,z,1],i*8);}
 gl.bindBuffer(gl.ARRAY_BUFFER,rainBuffer);gl.bufferData(gl.ARRAY_BUFFER,rainData,gl.STATIC_DRAW);
+// Small cached lens sprites: no full-screen blur, readback or per-drop DOM nodes.
+const lensRain=document.createElement('canvas');lensRain.id='lensRain';lensRain.setAttribute('aria-hidden','true');lensRain.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;display:none';document.body.append(lensRain);
+const lensCtx=lensRain.getContext('2d'),dropSprite=document.createElement('canvas');dropSprite.width=64;dropSprite.height=96;
+{
+ const c=dropSprite.getContext('2d');c.translate(32,48);c.scale(1,1.4);
+ let g=c.createRadialGradient(-5,-8,1,0,0,21);g.addColorStop(0,'rgba(220,239,250,.03)');g.addColorStop(.65,'rgba(120,155,170,.02)');g.addColorStop(.88,'rgba(15,30,42,.26)');g.addColorStop(1,'rgba(160,205,225,0)');c.fillStyle=g;c.beginPath();c.ellipse(0,0,23,24,0,0,Math.PI*2);c.fill();
+ c.lineWidth=1.1;c.strokeStyle='rgba(225,246,255,.65)';c.beginPath();c.ellipse(0,0,19,21,-.2,3.55,4.95);c.stroke();c.strokeStyle='rgba(220,243,255,.3)';c.beginPath();c.ellipse(0,0,19,21,-.2,.45,1.4);c.stroke();
+ g=c.createRadialGradient(-7,-13,0,-7,-13,5);g.addColorStop(0,'rgba(255,255,255,.8)');g.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=g;c.fillRect(-13,-19,12,12);
+}
+function lensRandom(n){const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x);}
+function renderLensRain(amount){
+ if(!amount||!gameStarted&&!replayView){lensRain.style.display='none';return;}lensRain.style.display='block';
+ const w=innerWidth,h=innerHeight,dpr=Math.min(devicePixelRatio||1,1.5);if(lensRain.width!==Math.round(w*dpr)||lensRain.height!==Math.round(h*dpr)){lensRain.width=Math.round(w*dpr);lensRain.height=Math.round(h*dpr);}
+ const c=lensCtx;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
+ const count=Math.round(12+72*amount),speed=Math.min(1,Math.abs(carSpeed)/MAX_WORLD_SPEED);
+ for(let i=0;i<count;i++){
+  const duration=5+lensRandom(i+1)*9,age=rainClock/duration+lensRandom(i+180),cycle=Math.floor(age),life=age-cycle,seed=i+cycle*137;
+  const slide=Math.pow(Math.max(0,life-.25)/.75,2),x=lensRandom(seed+21)*w+Math.sin(i)*slide*(15+speed*55),y=lensRandom(seed+54)*h+slide*h*.55;
+  const size=7+lensRandom(seed+87)*17,fade=Math.min(1,life*12,(1-life)*8);
+  c.globalAlpha=fade*(.55+.35*amount);
+  if(slide>.02){c.strokeStyle='rgba(193,220,232,.12)';c.lineWidth=Math.max(1,size*.12);c.beginPath();c.moveTo(x,y-size);c.quadraticCurveTo(x-3,y-size-20,x-slide*8,y-size-55*slide);c.stroke();}
+  c.drawImage(dropSprite,x-size/2,y-size*.75,size,size*1.5);
+ }
+ c.globalAlpha=1;
+}
+
 let rainClock=0;
 function renderWeather(vp,eye,dt){
- const r=WEATHER[weatherKey].rain;if(!r)return;
+ const r=WEATHER[weatherKey].rain;if(!r){renderLensRain(0);return;}
  if(replayView)rainClock=replayView.time/1000;
  else if(!gamePaused&&!resumeCountdownActive)rainClock+=dt;
+ renderLensRain(r);
  gl.useProgram(rainProg);gl.uniformMatrix4fv(rainLoc.vp,false,vp);gl.uniform3fv(rainLoc.eye,eye);gl.uniform1f(rainLoc.time,rainClock);gl.uniform1f(rainLoc.amount,r);
  gl.bindBuffer(gl.ARRAY_BUFFER,rainBuffer);gl.enableVertexAttribArray(rainLoc.drop);gl.vertexAttribPointer(rainLoc.drop,4,gl.FLOAT,false,0,0);
  gl.disable(gl.STENCIL_TEST);gl.enable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
@@ -893,6 +920,30 @@ function venueWallHit(track,x0,z0,x1,z1){
   }
  }
  return false;
+}
+
+// Full chassis capsule includes both axles; resolve existing overlap before sweeping.
+function wallSegmentClosest(ax,az,bx,bz,cx,cz,dx,dz){
+ const ux=bx-ax,uz=bz-az,vx=dx-cx,vz=dz-cz,cross=ux*vz-uz*vx;
+ if(Math.abs(cross)>1e-9){const wx=cx-ax,wz=cz-az,t=(wx*vz-wz*vx)/cross,u=(wx*uz-wz*ux)/cross;if(t>=0&&t<=1&&u>=0&&u<=1)return {x:0,z:0,d:0};}
+ let best={d:Infinity};
+ function test(px,pz,qx,qz,rx,rz,sign){const vx=rx-qx,vz=rz-qz,t=clamp(((px-qx)*vx+(pz-qz)*vz)/(vx*vx+vz*vz||1),0,1),x=(px-qx-t*vx)*sign,z=(pz-qz-t*vz)*sign,d=Math.hypot(x,z);if(d<best.d)best={x,z,d};}
+ test(ax,az,cx,cz,dx,dz,1);test(bx,bz,cx,cz,dx,dz,1);test(cx,cz,ax,az,bx,bz,-1);test(dx,dz,ax,az,bx,bz,-1);return best;
+}
+function resolveCarWalls(track,from,to){
+ const grid=track==='shanghai'?shanghaiWallGrid:trackWallGrids[track];if(!grid)return {...to,hit:false};
+ const cell=track==='shanghai'?SHANGHAI_COLLIDER_CELL:TRACK_WALL_CELL,radius=1.06,half=1.7;
+ const ground=track==='shanghai'?shanghaiHeightAt(from.x,from.z):rideTargetY(from.x,from.z);
+ const walls=new Set(),reach=half+radius+.5;
+ for(let ix=Math.floor((Math.min(from.x,to.x)-reach)/cell);ix<=Math.floor((Math.max(from.x,to.x)+reach)/cell);ix++)for(let iz=Math.floor((Math.min(from.z,to.z)-reach)/cell);iz<=Math.floor((Math.max(from.z,to.z)+reach)/cell);iz++)for(const w of grid.get(ix+','+iz)||[])if(ground+1.35>=w[4]&&ground<=w[5]+.45)walls.add(w);
+ function contact(p,w){const c=Math.cos(p.h)*half,s=Math.sin(p.h)*half;return wallSegmentClosest(p.x-c,p.z-s,p.x+c,p.z+s,...w.slice(0,4));}
+ let p={...from},hit=false;
+ // Eject a previously embedded rear axle instead of rejecting every escape movement.
+ for(let pass=0;pass<16;pass++){let moved=false;for(const w of walls){const v=contact(p,w);if(v.d>=radius)continue;let nx=v.x,nz=v.z;if(v.d<1e-8){nx=-(w[3]-w[1]);nz=w[2]-w[0];if(nx*(from.x-w[0])+nz*(from.z-w[1])<0){nx=-nx;nz=-nz;}}const len=Math.hypot(nx,nz)||1;p.x+=nx/len*(radius-v.d+.015);p.z+=nz/len*(radius-v.d+.015);moved=true;hit=true;}if(!moved)break;}
+ if(hit)return {...p,hit};
+ const angle=lerpAngle(from.h,to.h,1)-from.h,distance=Math.hypot(to.x-from.x,to.z-from.z),steps=Math.max(1,Math.ceil((distance+Math.abs(angle)*(half+radius))/.2));
+ for(let i=1;i<=steps;i++){const u=i/steps,next={x:from.x+(to.x-from.x)*u,z:from.z+(to.z-from.z)*u,h:from.h+angle*u};for(const w of walls)if(contact(next,w).d<radius)return {...p,hit:true};p=next;}
+ return {...p,hit:false};
 }
 
 // The current game uses WebGL1. This is a separate native-GLB drawing path,
@@ -2084,6 +2135,7 @@ function updateTyreHud(){
 }
 // TYRE_WEAR_END
 function update(dt){
+ const previousCarHeading=carHeading;
  const forward=keys['w']||keys['arrowup'],reverse=keys['s']||keys['arrowdown'],left=keys['a']||keys['arrowleft'],right=keys['d']||keys['arrowright'];
  const surfaceBefore=getSurfaceAt(carX,carZ),onGrass=surfaceBefore==='GRASS';
  const currentKmh=carSpeed<0?Math.abs(carSpeed)*3.6:(Math.abs(carSpeed)/MAX_WORLD_SPEED)*MAX_DASH_SPEED;
@@ -2169,12 +2221,9 @@ function update(dt){
  const previousCarX=carX,previousCarZ=carZ;
  carX+=Math.cos(travelHeading)*motionSpeed*dt;
  carZ+=Math.sin(travelHeading)*motionSpeed*dt;
- // Shanghai's roadside barriers are now solid: crossing their lateral collision line rolls the car back and sheds speed.
- if((selectedTrack==='shanghai' && shanghaiWallHit(previousCarX,previousCarZ,carX,carZ)) || (['spa','singapore','silverstone'].includes(selectedTrack) && venueWallHit(selectedTrack,previousCarX,previousCarZ,carX,carZ))){
-  carX=previousCarX;carZ=previousCarZ;
-  carSpeed*=0.34;solidWallImpactTimer=0.42;
-  // Keep the steering direction; driver can recover or reverse away from the wall.
- }
+ const collision=resolveCarWalls(selectedTrack,{x:previousCarX,z:previousCarZ,h:previousCarHeading},{x:carX,z:carZ,h:carHeading});
+ carX=collision.x;carZ=collision.z;carHeading=collision.h;
+ if(collision.hit){carSpeed=0;solidWallImpactTimer=.42;travelHeading=carHeading;}
  wearTyres(dt,Math.hypot(carX-previousCarX,carZ-previousCarZ),isBraking?brakePressure:0,tireLocked);
  solidWallImpactTimer=Math.max(0,solidWallImpactTimer-dt);
  const currentSurface=getSurfaceAt(carX,carZ);offroad=currentSurface==='GRASS';
