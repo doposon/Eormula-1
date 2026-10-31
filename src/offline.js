@@ -18,14 +18,14 @@ export function enableOfflineDownload(assets) {
       }));
       const statement = "import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';";
       if (!game.includes(statement)) throw new Error('Unsupported game version');
-      const source = game.replace(statement, '').replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=weather10';", '').replace('export default function startGame', 'function startGame');
+      const source = game.replace(statement, '').replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=replay16';", '').replace('export default function startGame', 'function startGame');
       // Blob parts avoid creating a second giant concatenated source string.
       const parts = [];
       const script = "(()=>{\n'use strict';\n"+camera.replaceAll('export ', '')+'\n'+markedAudio.replaceAll('export ', '')+'\n'+source+'\nstartGame({engineAudio:'+JSON.stringify(window.__engineSourceBase64||null)+'});\n})();';
-      let html = template.replace('href="src/ui.css?v=media14"','href="src/ui.css"').replace(/<div id="studioSplash"[^>]*>[\s\S]*?<\/div>/, '').replace('<link rel="stylesheet" href="src/styles.css">', '<style>'+styles+'</style>')
+      let html = template.replace('href="src/ui.css?v=replay16"','href="src/ui.css"').replace(/<div id="studioSplash"[^>]*>[\s\S]*?<\/div>/, '').replace('<link rel="stylesheet" href="src/styles.css">', '<style>'+styles+'</style>')
         .replace('<link rel="stylesheet" href="src/ui.css">', '<style>'+ui+'</style>')
         .replace('id="downloadOffline"', 'id="downloadOffline" hidden');
-      const marker = '<script type="module" src="src/main.js?v=media14"></script>';
+      const marker = '<script type="module" src="src/main.js?v=replay16"></script>';
       if (!html.includes(marker)) throw new Error('Unsupported page version');
       const [before, after] = html.split(marker);
       parts.push(before, '<script>\n');

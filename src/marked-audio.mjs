@@ -33,9 +33,13 @@ export class MarkedAudio {
  stopNode(){for(const n of this.nodes){try{n.stop();}catch{}n.disconnect();n.levelGain?.disconnect();}this.nodes=[];this.node=null;this.repeatPlan=null;}
  reset(){this.stopNode();this.timeline.reset();this.lastTime=null;this.plan=null;}
  dispose(){this.stopNode();this.master.disconnect();}
- update({active,throttle=false,brake=false,auto=true,volume=.4}){const now=this.ctx.currentTime,dt=this.active&&this.lastTime!==null?now-this.lastTime:0;this.lastTime=now;this.active=active;
+ update({active,throttle=false,brake=false,auto=true,volume=.4,recordedState=null}){const now=this.ctx.currentTime,dt=this.active&&this.lastTime!==null?now-this.lastTime:0;this.lastTime=now;this.active=active;
   if(!active){this.master.gain.cancelScheduledValues(now);this.master.gain.setValueAtTime(0,now);this.stopNode();this.plan=null;return;}
-  this.timeline.tick(dt,throttle,brake,auto);const t=this.timeline;
+  if(recordedState){
+   const t=this.timeline,s=recordedState;
+   if(t.gear!==s.gear||t.phase!==s.phase||t.intent!==s.intent||Math.abs(t.elapsed+dt-s.elapsed)>.2)this.plan=null;
+   Object.assign(t,s);
+  }else this.timeline.tick(dt,throttle,brake,auto);const t=this.timeline;
   this.master.gain.setTargetAtTime(volume*.8*(t.phase==='coast'?(.3+.7*Math.exp(-t.elapsed/6)):1),now,.03);
   const plan=`${t.intent}:${auto}:${t.manualRevision}`;if(this.plan===plan){this.scheduleRepeats(now);return;}this.stopNode();this.plan=plan;if(t.phase==='silent')return;
   // Schedule all subsequent boundaries on the audio clock, even if a heavy

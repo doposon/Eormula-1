@@ -1,5 +1,5 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=weather10';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=replay16';
 
 export default function startGame(__embeddedAssets) {
 document.getElementById("studioSplash")?.remove();
@@ -184,7 +184,8 @@ gl.bindBuffer(gl.ARRAY_BUFFER,rainBuffer);gl.bufferData(gl.ARRAY_BUFFER,rainData
 let rainClock=0;
 function renderWeather(vp,eye,dt){
  const r=WEATHER[weatherKey].rain;if(!r)return;
- if(!gamePaused&&!resumeCountdownActive)rainClock+=dt;
+ if(replayView)rainClock=replayView.time/1000;
+ else if(!gamePaused&&!resumeCountdownActive)rainClock+=dt;
  gl.useProgram(rainProg);gl.uniformMatrix4fv(rainLoc.vp,false,vp);gl.uniform3fv(rainLoc.eye,eye);gl.uniform1f(rainLoc.time,rainClock);gl.uniform1f(rainLoc.amount,r);
  gl.bindBuffer(gl.ARRAY_BUFFER,rainBuffer);gl.enableVertexAttribArray(rainLoc.drop);gl.vertexAttribPointer(rainLoc.drop,4,gl.FLOAT,false,0,0);
  gl.disable(gl.STENCIL_TEST);gl.enable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
@@ -2418,8 +2419,8 @@ function hidePauseOverlay(){pauseOverlay.style.display='none';}
 const replayPanel=document.createElement('div');replayPanel.id='replayPanel';replayPanel.hidden=true;
 replayPanel.innerHTML='<strong>LAP REPLAY</strong><select id="replayLap" aria-label="Recorded lap"></select><span id="replayEmpty">Complete a lap to unlock replay.</span><button id="replayPlay">PAUSE</button><button id="replayRestart">RESTART</button><select id="replayCamera" aria-label="Replay camera"><option value="chase">Chase</option><option value="cockpit">Cockpit</option><option value="halo">Halo / T-Cam</option><option value="frontwing">Front Wing</option><option value="rear">Rear View</option><option value="orbit">Orbit Car</option><option value="track">Track Overview</option></select><input id="replaySeek" type="range" min="0" max="1000" value="0" aria-label="Replay position"><span id="replayTime"></span><small>Drag to orbit · Scroll to zoom · Esc to return</small>';
 document.body.append(replayPanel);
-function closeReplay(){if(replayView){yaw=replayView.savedYaw;pitch=replayView.savedPitch;distance=replayView.savedDistance;}replayView=null;replayPanel.hidden=true;}
-function chooseReplayLap(){if(!recordedLaps.length)return;const lap=recordedLaps[Number(document.getElementById('replayLap').value)||0];replayView={lap,time:0,playing:true,last:performance.now(),savedYaw:replayView?.savedYaw??yaw,savedPitch:replayView?.savedPitch??pitch,savedDistance:replayView?.savedDistance??distance};document.getElementById('replayPlay').textContent='PAUSE';}
+function closeReplay(){if(replayView){gameAudioEngine?.reset();if(gameAudioEngine&&replayView.savedAudio)Object.assign(gameAudioEngine.timeline,replayView.savedAudio);yaw=replayView.savedYaw;pitch=replayView.savedPitch;distance=replayView.savedDistance;}replayView=null;replayPanel.hidden=true;}
+function chooseReplayLap(){if(!recordedLaps.length)return;const lap=recordedLaps[Number(document.getElementById('replayLap').value)||0];replayView={lap,time:0,playing:true,savedAudio:replayView?.savedAudio??(gameAudioEngine?{gear:gameAudioEngine.timeline.gear,phase:gameAudioEngine.timeline.phase,intent:gameAudioEngine.timeline.intent,elapsed:gameAudioEngine.timeline.elapsed}:null),last:performance.now(),savedYaw:replayView?.savedYaw??yaw,savedPitch:replayView?.savedPitch??pitch,savedDistance:replayView?.savedDistance??distance};document.getElementById('replayPlay').textContent='PAUSE';}
 document.getElementById('pauseReplay').onclick=()=>{
  pausePage='replay';hidePauseOverlay();pauseBack.hidden=false;replayPanel.hidden=false;closeSettings();
  const select=document.getElementById('replayLap');select.replaceChildren();recordedLaps.forEach((lap,i)=>{const option=document.createElement('option');option.value=i;option.textContent='LAP '+(i+1)+' · '+formatStopwatch(lap.duration);select.append(option);});
@@ -2438,7 +2439,7 @@ function drawReplayFrame(now,dt){
  if(r.time>=r.lap.duration){r.playing=false;document.getElementById('replayPlay').textContent='PLAY';}
  const samples=r.lap.samples;let lo=0,hi=samples.length-1;while(lo+1<hi){const m=(lo+hi)>>1;if(samples[m].t<=r.time)lo=m;else hi=m;}
  const a=samples[lo],b=samples[hi]||a,u=Math.max(0,Math.min(1,(r.time-a.t)/Math.max(1,b.t-a.t))),mix=k=>(a[k]||0)+((b[k]||0)-(a[k]||0))*u;
- r.sample=a;document.getElementById('replaySeek').value=String(r.time/r.lap.duration*1000);document.getElementById('replayTime').textContent=formatStopwatch(r.time)+' / '+formatStopwatch(r.lap.duration);
+ r.sample=a;r.audioState=a.audio?{...a.audio,elapsed:a.audio.elapsed+(r.time-a.t)/1000}:null;r.throttle=a.throttle??(b.speed>a.speed);r.brake=a.brake??(b.speed<a.speed);document.getElementById('replaySeek').value=String(r.time/r.lap.duration*1000);document.getElementById('replayTime').textContent=formatStopwatch(r.time)+' / '+formatStopwatch(r.lap.duration);
  const saved={carX,carZ,carHeading,travelHeading,carSpeed,playerRideY,wheelSpin,frontWheelSteer,tireLocked,npcGhostActive,displayGear,health:[...tyreHealth],suspension:{...playerVisualSuspension}};
  try{
   carX=mix('x');carZ=mix('z');carHeading=lerpAngle(a.heading,b.heading,u);travelHeading=carHeading;carSpeed=mix('speed');playerRideY=mix('rideY');wheelSpin=a.wheelSpin+(a.locked?0:Math.sign(a.speed||0)*(a.speedKmh||0)/3.6/.3*(r.time-a.t)/1000);frontWheelSteer=mix('frontWheelSteer');tireLocked=!!a.locked;npcGhostActive=false;
@@ -2447,7 +2448,8 @@ function drawReplayFrame(now,dt){
 }
 function makePlayerLapSample(t){
  const kmh=carSpeed<0?Math.abs(carSpeed)*3.6:(Math.abs(carSpeed)/MAX_WORLD_SPEED)*MAX_DASH_SPEED;
- return {t,speed:carSpeed,rideY:playerRideY,gear:displayGear,locked:tireLocked,tyres:[...tyreHealth],suspension:{...playerVisualSuspension,wheels:[...playerVisualSuspension.wheels]},x:carX,z:carZ,heading:carHeading,travelHeading,wheelSpin,frontWheelSteer,speedKmh:kmh};
+ const audio=gameAudioEngine?.timeline;
+ return {t,throttle:!!(keys.w||keys.arrowup),brake:!!(keys.s||keys.arrowdown),audio:audio?{gear:audio.gear,phase:audio.phase,intent:audio.intent,elapsed:audio.elapsed}:null,speed:carSpeed,rideY:playerRideY,gear:displayGear,locked:tireLocked,tyres:[...tyreHealth],suspension:{...playerVisualSuspension,wheels:[...playerVisualSuspension.wheels]},x:carX,z:carZ,heading:carHeading,travelHeading,wheelSpin,frontWheelSteer,speedKmh:kmh};
 }
 function setLightCount(count){document.querySelectorAll('#startLights .light-lamp').forEach((lamp,i)=>lamp.classList.toggle('lit',i<count));}
 function formatStopwatch(ms){
@@ -2713,9 +2715,9 @@ async function restoreEngineAudio(){
 restoreEngineAudio();
 // Browsers require a user gesture to start Web Audio, even for bundled recordings.
 for(const event of ['pointerdown','keydown'])document.addEventListener(event,()=>{if(gameAudioContext?.state==='suspended')gameAudioContext.resume().catch(()=>{});});
-function updateGameAudio(dt){if(!gameAudioEngine)return;const active=gameStarted&&!gamePaused&&!resumeCountdownActive&&!document.hidden&&audioSetup.hidden;
- if(!gameStarted)gameAudioEngine.reset();
- gameAudioEngine.update({active,throttle:!!(keys.w||keys.arrowup),brake:!!(keys.s||keys.arrowdown),auto:true,volume:Number(document.getElementById('engineAudioVolume').value)});
+function updateGameAudio(dt){if(!gameAudioEngine)return;const active=(replayView?replayView.playing:gameStarted&&!gamePaused&&!resumeCountdownActive)&&!document.hidden&&audioSetup.hidden;
+ if(!gameStarted&&!replayView)gameAudioEngine.reset();
+ gameAudioEngine.update({active,throttle:replayView?replayView.throttle:!!(keys.w||keys.arrowup),brake:replayView?replayView.brake:!!(keys.s||keys.arrowdown),recordedState:replayView?.audioState,auto:true,volume:Number(document.getElementById('engineAudioVolume').value)});
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&gameAudioEngine)gameAudioEngine.update({active:false});});
 document.getElementById('resetCar').addEventListener('click',()=>gameAudioEngine?.reset());
@@ -2723,7 +2725,7 @@ window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r'&&practiceConf
 
 for(const program of [prog,carProg,importedProg,silverstoneProg,skyProg])registerWeather(program);
 setWeather(weatherKey);
-let previous=performance.now();function loop(t){const dt=Math.min(.04,Math.max(0,(t-previous)/1000));previous=t;updateStartLights(t);updateResumeCountdown(t);if(gameStarted&&!gamePaused&&!resumeCountdownActive){update(dt);samplePlayerForGhost(t);updateNpc(dt);updateRideHeights(dt);}updateGameAudio(dt);drawReplayFrame(t,dt);updateFrameRateMeter(t);}requestAnimationFrame(loop);
+let previous=performance.now();function loop(t){const dt=Math.min(.04,Math.max(0,(t-previous)/1000));previous=t;updateStartLights(t);updateResumeCountdown(t);if(gameStarted&&!gamePaused&&!resumeCountdownActive){update(dt);samplePlayerForGhost(t);updateNpc(dt);updateRideHeights(dt);}drawReplayFrame(t,dt);updateGameAudio(dt);updateFrameRateMeter(t);}requestAnimationFrame(loop);
 
  const settingsToggle=document.getElementById('settingsToggle'),settingsPanel=document.getElementById('settingsPanel');
  function closeSettings(){settingsPanel.hidden=true;settingsToggle.setAttribute('aria-expanded','false');}
