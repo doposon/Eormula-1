@@ -1,3 +1,4 @@
+import { createLoadingScreen } from './loading-screen.js?v=loading11';
 import startGame from './game.js?v=weather10';
 import { enableOfflineDownload } from './offline.js?v=weather10';
 
@@ -14,12 +15,12 @@ export function encodeBase64(bytes) {
 }
 
 const overlay = document.createElement('div');
-overlay.className = 'asset-loading';
-overlay.setAttribute('role', 'status');
-const label = document.createElement('p');
-label.textContent = 'LOADING FORMULA RACING…';
-overlay.append(label);
 document.body.append(overlay);
+const splash=document.getElementById('studioSplash');
+if(splash){await Promise.race([splash.querySelector('img').decode().catch(()=>{}),new Promise(r=>setTimeout(r,3000))]);await new Promise(r=>setTimeout(r,1500));splash.remove();}
+const story=await createLoadingScreen(overlay,new URL('../assets/loading/',import.meta.url));
+const label={set textContent(value){const counter=value.match(/(\d+) \/ (\d+)/);if(counter)story.update(Number(counter[1]),Number(counter[2]),counter[0]+' FILES');else{const status=overlay.querySelector('[role="status"]');status.textContent=value;}},setAttribute(name,value){overlay.setAttribute(name,value);}};
+story.update(0,28);
 
 async function checkedFetch(url) {
   const response = await fetch(url, {cache:'no-cache'});

@@ -35,9 +35,10 @@ def export(destination, engine_source=None):
     if re.search(r'</script', script, re.I):
         raise ValueError('Inline script contains an HTML closing tag')
     html = (ROOT/'index.html').read_text().replace('id="downloadOffline"', 'id="downloadOffline" hidden')
+    html = re.sub(r'<div id="studioSplash"[^>]*>[\s\S]*?</div>', '', html)
     for name in ['styles','ui']:
         html = html.replace(f'<link rel="stylesheet" href="src/{name}.css">', '<style>\n'+(ROOT/f'src/{name}.css').read_text()+'\n</style>')
-    html = html.replace('<script type="module" src="src/main.js?v=weather10"></script>', '<script>\n'+script+'\n</script>')
+    html = html.replace('<script type="module" src="src/main.js?v=loading11"></script>', '<script>\n'+script+'\n</script>')
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open('x', encoding='utf-8', newline='\n') as output:
         output.write(html)

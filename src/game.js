@@ -2,6 +2,7 @@ import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
 import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=weather10';
 
 export default function startGame(__embeddedAssets) {
+document.getElementById("studioSplash")?.remove();
 
 window.addEventListener('error',function(event){
   const panel=document.getElementById('error');
