@@ -1,6 +1,6 @@
-import { createLoadingScreen } from './loading-screen.js?v=loading12';
-import startGame from './game.js?v=loading12';
-import { enableOfflineDownload } from './offline.js?v=loading12';
+import { createLoadingScreen } from './loading-screen.js?v=audio13';
+import startGame from './game.js?v=audio13';
+import { enableOfflineDownload } from './offline.js?v=audio13';
 
 // Keep the original decoders and driving code intact. Binary files contain
 // exactly the bytes formerly embedded as base64 strings, including compression.

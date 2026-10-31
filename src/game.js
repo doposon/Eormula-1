@@ -2670,7 +2670,7 @@ audioControls.className='settings-section';
 audioControls.innerHTML='<label>ENGINE AUDIO<input id="engineAudioFile" type="file" accept="video/*,audio/*"></label><p id="engineAudioStatus">Load the original 75-second Audio Lab recording to enable engine audio.</p><label>Volume <input id="engineAudioVolume" type="range" min="0" max="1" step="0.01" value="0.3"></label>';
 const audioSetup=document.createElement('div');audioSetup.id='audioSetup';audioSetup.setAttribute('role','dialog');audioSetup.setAttribute('aria-modal','true');audioSetup.setAttribute('aria-labelledby','audioSetupTitle');
 audioSetup.innerHTML='<div class="audio-setup-card"><h1 id="audioSetupTitle">Engine Audio Setup</h1><p>Select the original video or audio used in Audio Lab, then choose Continue.</p><div id="audioSetupControls"></div><div class="audio-setup-actions"><button id="audioSetupContinue" disabled>Continue</button><button id="audioSetupSkip">Skip for Now</button></div></div>';
-document.body.append(audioSetup);document.getElementById('audioSetupControls').append(audioControls);
+audioSetup.hidden=true;document.body.append(audioSetup);document.getElementById('audioSetupControls').append(audioControls);
 document.getElementById('audioSetupContinue').onclick=document.getElementById('audioSetupSkip').onclick=()=>{audioSetup.hidden=true;document.getElementById('practiceMode').focus();};
 for(const parent of [document.getElementById('settingsPanel'),document.querySelector('#modeScreen .mode-panel')]){const open=document.createElement('button');open.textContent='ENGINE AUDIO';open.onclick=()=>{audioSetup.hidden=false;document.getElementById('engineAudioFile').focus();};parent.append(open);}
 const audioInput=document.getElementById('engineAudioFile'),audioStatus=document.getElementById('engineAudioStatus');
@@ -2702,11 +2702,13 @@ async function restoreEngineAudio(){
  try{
   let bytes;
   if(__embeddedAssets?.engineAudio){const raw=atob(__embeddedAssets.engineAudio);bytes=Uint8Array.from(raw,c=>c.charCodeAt(0)).buffer;}
-  else{try{bytes=await engineStore('readonly',store=>store.get('original'));}catch{}
-   if(!bytes){const response=await fetch('assets/engine-source.mp4');if(!response.ok)throw Error('No bundled recording');bytes=await response.arrayBuffer();}}
+  else{
+   try{const response=await fetch('assets/engine-source.mp3');if(!response.ok)throw Error('No bundled recording');bytes=await response.arrayBuffer();}
+   catch{bytes=await engineStore('readonly',store=>store.get('original'));if(!bytes)throw Error('No saved recording');}
+  }
   // An explicit user upload wins over a slow background restore.
   if(!gameAudioEngine){await installEngineAudio(bytes);audioSetup.hidden=true;}
- }catch{if(!gameAudioEngine)audioStatus.textContent='Choose the original recording once. It will be saved on this browser and included in offline downloads.';}
+ }catch{if(!gameAudioEngine){audioSetup.hidden=false;audioStatus.textContent='Automatic audio loading failed. Select a recording or skip to continue.';}}
 }
 restoreEngineAudio();
 // Browsers require a user gesture to start Web Audio, even for bundled recordings.

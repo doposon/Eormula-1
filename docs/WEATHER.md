@@ -16,15 +16,14 @@ or per-drop physics. Actual frame rate depends on the device and selected circui
 
 ## Recording
 
-The original 75.392-second recording is NOT present in this repository. To bundle
-it for hosted play, put the original recording at `assets/engine-source.mp4`.
+The supplied 75.392-second engine recording is bundled at `assets/engine-source.mp3` and loads automatically for hosted play.
 Alternatively choose it once in ENGINE AUDIO: the validated original bytes are
 stored in IndexedDB and restored automatically on subsequent visits to that origin.
 Storage permission/clearing/private browsing may prevent persistence. Playback is
 unlocked by the first user gesture, as required by browser autoplay policies.
 
 The in-game offline HTML download embeds the currently loaded original bytes.
-The Python exporter also embeds `assets/engine-source.mp4` if present, or accepts
+The Python exporter also embeds `assets/engine-source.mp3` if present, or accepts
 `--engine-source /path/to/original.mp4`. The approved markers and audio scheduling
 remain unchanged. No video frames are rendered during driving.
 

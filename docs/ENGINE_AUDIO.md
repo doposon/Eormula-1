@@ -1,3 +1,5 @@
+> Bundled MP3: the supplied original engine recording now loads automatically from `assets/engine-source.mp3`. Browsers unlock playback on a user gesture. The in-game offline download and Python exporter embed the original bytes. Existing marked ranges and playback rates remain unchanged.
+
 > Weather update: engine recordings can now be bundled, cached and embedded in offline downloads. See [WEATHER.md](WEATHER.md). The original source is still needed.
 
 ## Sound 06: fade replay endings

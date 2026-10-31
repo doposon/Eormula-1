@@ -29,17 +29,17 @@ def export(destination, engine_source=None):
     game = game.replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=weather10';", '')
     marked_audio = (ROOT/'src/marked-audio.mjs').read_text().replace('export ', '')
     game = re.sub(r'__embeddedAssets\["(asset-\d+)"\]', lambda m:assets[m[1]], game)
-    engine_path = engine_source or ROOT/'assets/engine-source.mp4'
+    engine_path = engine_source or ROOT/'assets/engine-source.mp3'
     engine = base64.b64encode(engine_path.read_bytes()).decode('ascii') if engine_path.exists() else None
     script = "(()=>{\n'use strict';\n"+camera+'\n'+marked_audio+'\n'+game+'\nstartGame({engineAudio:'+json.dumps(engine)+'});\n})();'
     if re.search(r'</script', script, re.I):
         raise ValueError('Inline script contains an HTML closing tag')
     html = (ROOT/'index.html').read_text().replace('id="downloadOffline"', 'id="downloadOffline" hidden')
-    html = html.replace('href="src/ui.css?v=loading12"','href="src/ui.css"')
+    html = html.replace('href="src/ui.css?v=audio13"','href="src/ui.css"')
     html = re.sub(r'<div id="studioSplash"[^>]*>[\s\S]*?</div>', '', html)
     for name in ['styles','ui']:
         html = html.replace(f'<link rel="stylesheet" href="src/{name}.css">', '<style>\n'+(ROOT/f'src/{name}.css').read_text()+'\n</style>')
-    html = html.replace('<script type="module" src="src/main.js?v=loading12"></script>', '<script>\n'+script+'\n</script>')
+    html = html.replace('<script type="module" src="src/main.js?v=audio13"></script>', '<script>\n'+script+'\n</script>')
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open('x', encoding='utf-8', newline='\n') as output:
         output.write(html)
