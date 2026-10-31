@@ -12,18 +12,36 @@ const cards = [
 ];
 // Host calls this before starting resource requests; the splash is already in static HTML.
 export async function createLoadingScreen(root, imageRoot) {
- let index=0, disposed=false;
+ let index=0, disposed=false, request=0;
+ const cache=new Map();
  root.className='loading-story';
  const button=document.createElement('button');button.type='button';button.className='loading-story-card';button.setAttribute('aria-label','Next Formula 1 fun fact');
- const image=document.createElement('img');image.className='loading-story-image';
+ const visual=document.createElement('div');visual.className='loading-story-visual';
  const text=document.createElement('p');text.className='loading-story-fact';
  const hint=document.createElement('small');hint.textContent='CLICK FOR ANOTHER F1 FACT';
- button.append(image,text,hint);
+ button.append(visual,text,hint);
  const footer=document.createElement('div');footer.className='loading-story-footer';
  const status=document.createElement('p');status.setAttribute('role','status');status.setAttribute('aria-live','polite');
  const meter=document.createElement('progress');meter.max=1;meter.value=0;meter.setAttribute('aria-label','Game resource download');
  footer.append(status,meter);root.replaceChildren(button,footer);
- function show(){const [file,name,fact]=cards[index];image.src=new URL(file+'.png',imageRoot).href;image.alt=name;text.textContent=fact;}
+ function load(target){
+  if(!cache.has(target)){
+   const [file,name]=cards[target],img=new Image();img.className='loading-story-image';img.alt=name;
+   img.src=new URL(file+'.png',imageRoot).href;
+   const ready=img.decode().then(()=>img).catch(error=>{cache.delete(target);throw error;});cache.set(target,ready);
+  }
+  return cache.get(target);
+ }
+ async function show(){
+  const target=index,token=++request;
+  try{const img=await load(target);if(disposed||token!==request)return;
+   // Replace both in the same task, only after all image pixels are decoded.
+   visual.replaceChildren(img);text.textContent=cards[target][2];
+   hint.textContent='CLICK FOR ANOTHER F1 FACT';
+   load((target+1)%cards.length).catch(()=>{});
+  }catch{if(token===request&&!disposed)hint.textContent='PHOTO COULD NOT LOAD · CLICK TO CONTINUE';}
+ }
  button.addEventListener('click',()=>{index=(index+1)%cards.length;show();});show();
+
  return {update(loaded,total,detail=''){if(disposed)return;meter.value=total?Math.min(1,loaded/total):0;status.textContent=`LOADING ${Math.round(meter.value*100)}%${detail?' · '+detail:''}`;},remove(){disposed=true;root.remove();}};
 }

@@ -22,10 +22,10 @@ export function enableOfflineDownload(assets) {
       // Blob parts avoid creating a second giant concatenated source string.
       const parts = [];
       const script = "(()=>{\n'use strict';\n"+camera.replaceAll('export ', '')+'\n'+markedAudio.replaceAll('export ', '')+'\n'+source+'\nstartGame({engineAudio:'+JSON.stringify(window.__engineSourceBase64||null)+'});\n})();';
-      let html = template.replace('href="src/ui.css?v=loading11"','href="src/ui.css"').replace(/<div id="studioSplash"[^>]*>[\s\S]*?<\/div>/, '').replace('<link rel="stylesheet" href="src/styles.css">', '<style>'+styles+'</style>')
+      let html = template.replace('href="src/ui.css?v=loading12"','href="src/ui.css"').replace(/<div id="studioSplash"[^>]*>[\s\S]*?<\/div>/, '').replace('<link rel="stylesheet" href="src/styles.css">', '<style>'+styles+'</style>')
         .replace('<link rel="stylesheet" href="src/ui.css">', '<style>'+ui+'</style>')
         .replace('id="downloadOffline"', 'id="downloadOffline" hidden');
-      const marker = '<script type="module" src="src/main.js?v=loading11"></script>';
+      const marker = '<script type="module" src="src/main.js?v=loading12"></script>';
       if (!html.includes(marker)) throw new Error('Unsupported page version');
       const [before, after] = html.split(marker);
       parts.push(before, '<script>\n');
