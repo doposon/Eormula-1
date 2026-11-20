@@ -23,6 +23,8 @@ Windows 可使用 `py -3` 替代 `python3`。浏览器地址栏输入 `http://12
 - `src/camera.mjs`：座舱镜头与车身坐标变换。
 - `src/styles.css`：原版样式。
 - `src/main.js`：加载独立资源，显示进度和加载错误，再启动游戏。
+- `src/i18n.mjs`：English / 中文界面切换（词典、动态文字规则和自动翻译逻辑）。
+- `src/touch-controls.mjs`：手机 / 平板的触屏操控（油门、刹车、转向、镜头、退出）。
 - `src/ui.css`：加载界面，以及较矮窗口下菜单可滚动的修正。
 - `assets/*.bin`：从原版 base64 精确还原的 28 份二进制资源，保留原有压缩格式。
 - `assets/manifest.json`：资源路径、大小和 SHA-256。
@@ -35,6 +37,8 @@ Windows 可使用 `py -3` 替代 `python3`。浏览器地址栏输入 `http://12
 python3 tools/verify_assets.py
 python3 tools/verify_assets.py --baseline
 node tools/camera.test.mjs
+npm i --no-save jsdom && node tools/i18n.test.mjs   # 双语界面测试（只需 jsdom，不进入发布）
+node tools/touch.test.mjs                           # 触屏操控测试（同样需要 jsdom）
 node --input-type=module --check < src/game.js
 node --input-type=module --check < src/main.js
 ```
@@ -53,6 +57,16 @@ python3 tools/camera_smoke.py
 默认优先使用系统 `chromium`，否则使用 Playwright 的浏览器；可通过 `CHROMIUM_PATH` 指定路径。`--track spa` 可只检查指定赛道。测试输出与截图位于忽略的 `test-results/` 目录。测试使用软件 WebGL，其帧率不能用来衡量玩家设备性能。
 
 `camera_smoke.py` 使用当前云环境的 `/usr/bin/chromium`，检查 RB22、SF26 座舱和五条赛道，并通过有/无玩家车身的像素对比确认车身真正进入画面。它的测试注入只在浏览器请求拦截中启用，不随游戏发布。
+
+## 界面语言（English / 中文）
+
+开始界面（PRACTICE / GRAND PRIX 所在页面）底部有 **English / 中文** 切换按钮，游戏内设置面板里也有一组。选择中文后，菜单、HUD、计时面板、暂停菜单、回放面板、音效设置和加载界面的趣闻都会显示为中文；选择会保存在浏览器本地，下次打开自动沿用。默认语言是 English。
+
+翻译在 `src/i18n.mjs` 中完成：英文原文保持不变，中文模式下按词典和规则替换页面文字，并自动翻译游戏运行时写入的文字。新增界面文字时，只需在 `DICTIONARY`（固定文字）或 `PATTERNS`（带数字或名称的文字）中补一条。离线 HTML 导出也包含此模块。详见 `docs/LANGUAGE.md`。
+
+## 手机触屏操控
+
+在手机或平板上（建议横屏）开始比赛后，屏幕上会出现触屏按键：右下角最右是油门，左边是刹车；左下角是左右转向；右上角 SETTINGS 旁边的摄像头图标切换视角（相当于 V）；左上角 EXIT 相当于 Esc / 空格（暂停、继续）。原有的键盘控制没有任何改动。电脑上不会显示这些按键，可在地址后加 `?touch=1` 强制开启测试。详见 `docs/TOUCH.md`。
 
 ## 驾驶视角
 

@@ -10,22 +10,22 @@ export function enableOfflineDownload(assets) {
     button.textContent = 'PREPARING DOWNLOAD…';
     try {
       const root = new URL('../', import.meta.url);
-      const files = ['index.html', 'src/styles.css', 'src/ui.css', 'src/camera.mjs', 'src/game.js', 'src/marked-audio.mjs'];
-      const [template, styles, ui, camera, game, markedAudio] = await Promise.all(files.map(async path => {
+      const files = ['index.html', 'src/styles.css', 'src/ui.css', 'src/camera.mjs', 'src/game.js', 'src/marked-audio.mjs', 'src/i18n.mjs', 'src/touch-controls.mjs'];
+      const [template, styles, ui, camera, game, markedAudio, languageModule, touchModule] = await Promise.all(files.map(async path => {
         const response = await fetch(new URL(path, root), {cache:'no-cache'});
         if (!response.ok) throw new Error('Could not load '+path);
         return response.text();
       }));
       const statement = "import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';";
       if (!game.includes(statement)) throw new Error('Unsupported game version');
-      const source = game.replace(statement, '').replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=rainwall17';", '').replace('export default function startGame', 'function startGame');
+      const source = game.replace(statement, '').replace("import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=lang18';", '').replace("import { i18n } from './i18n.mjs?v=lang18';", '').replace("import { touchControls } from './touch-controls.mjs?v=lang18';", '').replace('export default function startGame', 'function startGame');
       // Blob parts avoid creating a second giant concatenated source string.
       const parts = [];
-      const script = "(()=>{\n'use strict';\n"+camera.replaceAll('export ', '')+'\n'+markedAudio.replaceAll('export ', '')+'\n'+source+'\nstartGame({engineAudio:'+JSON.stringify(window.__engineSourceBase64||null)+'});\n})();';
-      let html = template.replace('href="src/ui.css?v=rainwall17"','href="src/ui.css"').replace(/<div id="studioSplash"[^>]*>[\s\S]*?<\/div>/, '').replace('<link rel="stylesheet" href="src/styles.css">', '<style>'+styles+'</style>')
+      const script = "(()=>{\n'use strict';\n"+camera.replaceAll('export ', '')+'\n'+markedAudio.replaceAll('export ', '')+'\n'+languageModule.replaceAll('export ', '')+'\n'+touchModule.replaceAll('export ', '')+'\n'+source+'\nstartGame({engineAudio:'+JSON.stringify(window.__engineSourceBase64||null)+'});\n})();';
+      let html = template.replace('href="src/ui.css?v=lang18"','href="src/ui.css"').replace(/<div id="studioSplash"[^>]*>[\s\S]*?<\/div>/, '').replace('<link rel="stylesheet" href="src/styles.css">', '<style>'+styles+'</style>')
         .replace('<link rel="stylesheet" href="src/ui.css">', '<style>'+ui+'</style>')
         .replace('id="downloadOffline"', 'id="downloadOffline" hidden');
-      const marker = '<script type="module" src="src/main.js?v=rainwall17"></script>';
+      const marker = '<script type="module" src="src/main.js?v=lang18"></script>';
       if (!html.includes(marker)) throw new Error('Unsupported page version');
       const [before, after] = html.split(marker);
       parts.push(before, '<script>\n');

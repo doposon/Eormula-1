@@ -66,3 +66,53 @@
 .loading-story-card{display:grid;grid-template-rows:minmax(0,1fr) auto auto;justify-items:center;overflow:hidden;gap:14px;padding:20px 24px}.loading-story-visual{width:100%;height:100%;min-height:0;max-width:1100px;overflow:hidden}.loading-story-image{display:block;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;object-position:center}.loading-story-fact{flex:none}.loading-story-card small{margin:0}
 
 .loading-story.studio-card .loading-story-visual{max-width:none;position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.loading-story.studio-card .loading-story-card{position:relative}.loading-story.studio-card .loading-story-fact{display:none}.loading-story.studio-card .loading-story-card small{position:absolute;bottom:12px;z-index:1}
+
+/* English / Chinese switch (start screen and settings panel). */
+.lang-switch{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:18px}
+.lang-switch .lang-label{font-size:10px;font-weight:800;letter-spacing:2px;color:#9fb6c0;margin-right:4px}
+.lang-switch button{min-width:84px;padding:9px 16px;font-size:12px;letter-spacing:.5px;background:#0b1a22;border-color:#36535f;color:#b6c7cf}
+.lang-switch button[aria-pressed="true"]{background:#13434b;border-color:#71e4e8;color:#b6ffff;cursor:default}
+.settings-panel .lang-switch{margin:12px 0 4px;justify-content:flex-start}
+
+/* Chinese text: system CJK fonts, and no wide English-style letter spacing. */
+:lang(zh-CN) body,:lang(zh-CN) button,:lang(zh-CN) select,:lang(zh-CN) input{font-family:Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",sans-serif}
+:lang(zh-CN) .mode-panel h1{letter-spacing:2px;line-height:1.15}
+:lang(zh-CN) .title,:lang(zh-CN) .sub,:lang(zh-CN) .mode-index,:lang(zh-CN) .mode-action,:lang(zh-CN) .mode-footer,:lang(zh-CN) .mode-card strong,:lang(zh-CN) .lights-label,:lang(zh-CN) .telelabel,:lang(zh-CN) .team-role,:lang(zh-CN) .settings-head,:lang(zh-CN) .loading-story-card small,:lang(zh-CN) .loading-story-footer p{letter-spacing:.8px}
+:lang(zh-CN) .camera-choice-grid button,:lang(zh-CN) .settings-old-buttons button,:lang(zh-CN) .mode-card,:lang(zh-CN) .mode-action{white-space:normal}
+:lang(zh-CN) .loading-story-fact{letter-spacing:.5px;line-height:1.6}
+:lang(zh-CN) .info{line-height:1.75}
+
+/* Touch controls (phones / tablets, landscape). Only active with body.touch-mode. */
+#touchControls,#touchExit,.tc-camera{display:none}
+body.touch-mode{--tc:clamp(52px,17vh,92px)}
+#touchControls{position:fixed;inset:0;z-index:9;pointer-events:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+body.touch-mode.in-session #touchControls{display:block}
+body.touch-mode.in-session #touchExit{display:flex}
+body.touch-mode.in-session .tc-camera{display:inline-flex}
+body.touch-mode:not(.drive-active) .tc-steer,body.touch-mode:not(.drive-active) .tc-pedals{display:none}
+.tc-steer{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:14px;display:flex;gap:12px;pointer-events:auto;touch-action:none}
+.tc-pedals{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:14px;display:flex;align-items:flex-end;gap:14px}
+.tc-btn,.tc-pedal{pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;background:rgba(10,22,30,.55);color:#dffcff;border:2px solid rgba(180,230,240,.55);backdrop-filter:blur(3px);transition:transform .06s,background .06s,box-shadow .06s}
+.tc-btn{display:flex;align-items:center;justify-content:center;width:calc(var(--tc)*1.05);height:calc(var(--tc)*1.05);border-radius:22px}
+.tc-btn svg{width:48%;height:48%}
+.tc-pedal{display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px;box-sizing:border-box;border-radius:20px;font-size:11px;font-weight:900;letter-spacing:1.5px;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.12) 0 3px,transparent 3px 11px)}
+.tc-gas{width:calc(var(--tc)*1.15);height:calc(var(--tc)*1.8);border-color:#71e4e8;box-shadow:inset 0 0 18px rgba(113,228,232,.28),0 0 14px rgba(113,228,232,.18)}
+.tc-brake{width:calc(var(--tc)*1);height:calc(var(--tc)*1.35);border-color:#ff775b;color:#ffd3c8;box-shadow:inset 0 0 18px rgba(255,119,91,.25),0 0 14px rgba(255,119,91,.16)}
+.tc-btn.down,.tc-pedal.down{transform:scale(.94);background-color:rgba(113,228,232,.38);border-color:#b6ffff}
+.tc-brake.down{background-color:rgba(255,119,91,.42);border-color:#ffb3a3}
+.tc-exit{position:fixed;left:8px;top:8px;z-index:10002;align-items:center;gap:5px;padding:8px 11px;font-size:11px;touch-action:manipulation}
+.tc-exit svg,.tc-camera svg{display:block;width:19px;height:19px}
+.tc-camera{align-items:center;justify-content:center;margin-right:6px;padding:8px 10px;vertical-align:top;touch-action:manipulation}
+.tc-rotate{display:none;position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);max-width:80vw;padding:12px 18px;text-align:center;font-weight:800;letter-spacing:1px;color:#dffcff;background:rgba(5,12,18,.88);border:1px solid #71e4e8;border-radius:12px}
+@media (orientation:portrait){body.touch-mode.in-session .tc-rotate{display:block}}
+/* While driving on a touch device, make room for the pads. */
+body.touch-mode.in-session #downloadOffline{display:none}
+body.touch-mode .topbar{left:66px;right:8px;top:8px}
+body.touch-mode .brand{padding:7px 10px}
+body.touch-mode .brand .sub{display:none}
+body.touch-mode .brand .title{font-size:11px;letter-spacing:1.2px}
+body.touch-mode #drivingHud{left:50%;transform:translateX(-50%);bottom:8px;width:170px;padding:8px}
+body.touch-mode #practiceTiming{top:58px;bottom:auto;right:8px;width:170px}
+body.touch-mode #tyreHud{top:58px;left:8px;width:132px;padding:8px}
+body.touch-mode #helpToggle{left:12px;bottom:calc(var(--tc)*1.05 + 34px)}
+body.touch-mode .info:not(.help-collapsed){left:12px;bottom:calc(var(--tc)*1.05 + 76px);max-height:calc(100vh - var(--tc)*1.05 - 150px)}

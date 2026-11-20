@@ -1,6 +1,10 @@
-import { createLoadingScreen } from './loading-screen.js?v=rainwall17';
-import startGame from './game.js?v=rainwall17';
-import { enableOfflineDownload } from './offline.js?v=rainwall17';
+import { createLoadingScreen } from './loading-screen.js?v=lang18';
+import startGame from './game.js?v=lang18';
+import { enableOfflineDownload } from './offline.js?v=lang18';
+import { i18n } from './i18n.mjs?v=lang18';
+
+// Apply the saved language before anything is drawn, so the loading screen is translated too.
+i18n.init();
 
 // Keep the original decoders and driving code intact. Binary files contain
 // exactly the bytes formerly embedded as base64 strings, including compression.

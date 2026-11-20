@@ -1,7 +1,11 @@
 import { DRIVING_CAMERAS, carBodyFrame, cockpitCamera } from './camera.mjs';
-import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=rainwall17';
+import { MarkedAudio, APPROVED_AUDIO } from './marked-audio.mjs?v=lang18';
+import { i18n } from './i18n.mjs?v=lang18';
+import { touchControls } from './touch-controls.mjs?v=lang18';
 
 export default function startGame(__embeddedAssets) {
+i18n.init();
+touchControls.init();
 document.getElementById("studioSplash")?.remove();
 
 window.addEventListener('error',function(event){
@@ -2774,7 +2778,7 @@ window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='r'&&practiceConf
 
 for(const program of [prog,carProg,importedProg,silverstoneProg,skyProg])registerWeather(program);
 setWeather(weatherKey);
-let previous=performance.now();function loop(t){const dt=Math.min(.04,Math.max(0,(t-previous)/1000));previous=t;updateStartLights(t);updateResumeCountdown(t);if(gameStarted&&!gamePaused&&!resumeCountdownActive){update(dt);samplePlayerForGhost(t);updateNpc(dt);updateRideHeights(dt);}drawReplayFrame(t,dt);updateGameAudio(dt);updateFrameRateMeter(t);}requestAnimationFrame(loop);
+let previous=performance.now();function loop(t){const dt=Math.min(.04,Math.max(0,(t-previous)/1000));previous=t;document.body.classList.toggle('in-session',practiceConfigured);document.body.classList.toggle('drive-active',practiceConfigured&&!gamePaused&&!resumeCountdownActive&&!replayView);updateStartLights(t);updateResumeCountdown(t);if(gameStarted&&!gamePaused&&!resumeCountdownActive){update(dt);samplePlayerForGhost(t);updateNpc(dt);updateRideHeights(dt);}drawReplayFrame(t,dt);updateGameAudio(dt);updateFrameRateMeter(t);}requestAnimationFrame(loop);
 
  const settingsToggle=document.getElementById('settingsToggle'),settingsPanel=document.getElementById('settingsPanel');
  function closeSettings(){settingsPanel.hidden=true;settingsToggle.setAttribute('aria-expanded','false');}

@@ -1,3 +1,11 @@
+## Touch controls for phones and tablets
+
+New on-screen controls for landscape play on touch devices: GAS (rightmost) and BRAKE at bottom right, steer ◀ ▶ at bottom left, a camera icon beside SETTINGS (same as V), and EXIT at top left (same as Esc / Space). Buttons fire the same keyboard events as the keys, so the existing keyboard controls are untouched. Hidden on computers; `?touch=1` / `?touch=0` force it on / off. New `src/touch-controls.mjs`, `tools/touch.test.mjs` and `docs/TOUCH.md`; both offline exporters bundle the module.
+
+## English / 中文 bilingual interface
+
+The start screen (PRACTICE / GRAND PRIX) now has an English / 中文 switch underneath, and the settings panel has the same one. Chinese mode translates menus, HUD, timing, pause, replay, audio setup and the loading-screen facts; the choice is remembered. English remains the default and the source text. New `src/i18n.mjs`, `tools/i18n.test.mjs` (jsdom) and `docs/LANGUAGE.md`; both offline exporters bundle the module. Cache token bumped to `lang18`.
+
 ## English game UI, lock-up alert and per-lap replay
 
 All game interface text now uses English motorsport terminology. A LOCK-UP alert appears next to the gear indicator. The pause menu offers replay of every valid completed lap in the current session, with lap selection, play/pause, restart, scrubbing, five driving cameras, Orbit Car and Track Overview. Dragging switches mounted replay views to orbit, and the mouse wheel zooms. Rendering temporarily uses recorded car/suspension/tyre state and restores live state after every frame; physics, timing and wear stay paused. Session reset clears the lap archive.
